@@ -1,3 +1,9 @@
+# End of support:warning: 
+
+
+
+
+
 # FoliaPhantom-extra
 ![ロゴ](logo.png)
 # **日本語 (Japanese)** | [English](#english)

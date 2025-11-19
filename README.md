@@ -1,164 +1,238 @@
-# Folia Phantom
+# Folia Phantom --- Enterprise Edition
 
-[English](#english) | [日本語 (Japanese)](#日本語-japanese)
+*High-Performance Folia Compatibility Layer for Legacy Bukkit Plugins*
 
----
+## Overview
 
-## English
+**Folia Phantom --- Enterprise Edition** is a proprietary compatibility
+and transformation engine for running legacy Bukkit plugins safely on
+the **Folia multi-threaded server architecture**.\
+The system performs **runtime-safe bytecode patching**, replacing
+thread-unsafe Bukkit API calls with Folia-compatible equivalents while
+preserving original plugin behavior.
 
-Folia Phantom is a powerful tool designed to patch Bukkit plugins, ensuring their compatibility with the high-performance Folia server. It operates by dynamically transforming the plugin's bytecode to replace thread-unsafe API calls with their Folia-supported equivalents.
+This edition is closed-source and licensed exclusively for internal or
+contracted deployment.
 
-This project is structured as a multi-module Maven application, providing both a standalone command-line interface (CLI) for offline patching and a Bukkit plugin for on-the-fly transformations.
+The platform consists of a multi-module Maven application featuring:
 
-### Project Structure
+-   **Core Engine** --- The transformation runtime and ASM-based
+    patching logic.
+-   **Command-Line Processor** --- A standalone tool for offline binary
+    patch generation.
+-   **Server-Side Integration Plugin** --- A Folia plugin providing
+    on-the-fly transformation.
 
-- `folia-phantom-core`: A library module containing the essential patching logic, including the ASM transformers and the `PluginPatcher` utility.
-- `folia-phantom-cli`: A command-line application that depends on the `core` module and produces a runnable JAR for patching plugins.
-- `folia-phantom-plugin`: A Bukkit plugin that also depends on the `core` module and is intended for server environments.
+## Modules
 
-### Building the Project
+### `folia-phantom-core`
 
-To build the project, you will need [Apache Maven](https://maven.apache.org/install.html) and a Java Development Kit (JDK) version 17 or higher.
+Internal library containing: - the bytecode analyzers - the instruction
+transformers - the deterministic plugin patcher - compatibility rule
+sets for Folia's scheduler and region-threading model
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/folia-phantom.git
-    cd folia-phantom
-    ```
+Not distributed independently.
 
-2.  **Build the project using Maven:**
-    ```bash
+### `folia-phantom-cli`
+
+Standalone CLI application used for: - batch-patching plugin JARs -
+validating compatibility - generating pre-patched optimized builds
+
+Distributed as a sealed binary.
+
+### `folia-phantom-plugin`
+
+Server-side integration layer: - performs dynamic transformation during
+plugin load - guarantees region-thread safety - ensures consistency with
+Folia's concurrency model
+
+Licensed for deployment on authorized Folia servers only.
+
+## Building (Internal Use Only)
+
+A JDK 17+ environment and Apache Maven are required.\
+Source code access is restricted; only authorized maintainers may build
+artifacts.
+
     mvn clean package
-    ```
 
-This command will compile the source code, run any tests, and package the artifacts. The resulting JAR files will be located in the `target` directory of their respective modules.
+Generated modules appear under each module's `target/` directory.
 
-### Usage
+## Usage
 
-#### Command-Line Interface (CLI)
+### Command-Line Processor
 
-The CLI allows you to patch a single JAR file or an entire directory of JARs.
+#### Interactive Mode
 
-1.  **Locate the CLI JAR:**
-    The runnable CLI JAR, named `Folia-Phantom-CLI-1.0.0.jar`, can be found in the `folia-phantom/folia-phantom-cli/target` directory after a successful build.
+    java -jar Folia-Phantom-CLI.jar
 
-2.  **Run the CLI:**
-    -   **Interactive Mode:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar
-        ```
-        The application will prompt you to enter the path to the JAR file or directory you wish to patch.
+The processor will request a target file or directory, then generate
+transformed plugins inside:
 
-    -   **Direct Mode:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar /path/to/your/plugin.jar
-        ```
-        Replace `/path/to/your/plugin.jar` with the actual path to the plugin file or directory.
+    patched-plugins/
 
-Patched plugins will be saved in the `patched-plugins` directory, which is created in the same location where you run the command.
+#### Direct Invocation
 
-#### Bukkit Plugin
+    java -jar Folia-Phantom-CLI.jar /path/to/plugin.jar
 
-The Bukkit plugin is designed to be installed on a Folia server to provide on-the-fly patching.
+### Server Integration Plugin
 
-1.  **Locate the Plugin JAR:**
-    The plugin JAR, named `Folia-Phantom-Plugin-1.0.0.jar`, can be found in the `folia-phantom/folia-phantom-plugin/target` directory.
+1.  Place `Folia-Phantom-Plugin.jar` in the server's `plugins/`
+    directory.
+2.  Restart the server.
+3.  The system will intercept plugin load events and apply
+    transformations automatically.
 
-2.  **Install the Plugin:**
-    Copy the JAR file into your server's `plugins` directory and restart the server.
+## Technology
 
-### How It Works
+The engine uses **ASM 9+** to inspect and mutate bytecode at class-load
+time.\
+It replaces: - synchronous Bukkit scheduler calls - direct world access
+from non-region threads - unsafe entity or block interaction APIs
 
-Folia Phantom uses the [ASM bytecode manipulation library](https://asm.ow2.io/) to inspect and modify the class files within a plugin's JAR. It identifies and replaces calls to Bukkit API methods that are not thread-safe with their Folia-compatible counterparts. This process is handled by a series of `ClassTransformer` implementations, each targeting a specific set of API methods.
+with Folia-compliant equivalents, while maintaining compatibility and
+execution-order guarantees.
 
-### Contributing
+The transformation pipeline is fully deterministic and trace-logged for
+audit purposes.
 
-Contributions to Folia Phantom are welcome! Please feel free to open an issue or submit a pull request on our [GitHub repository](https://github.com/your-username/folia-phantom).
+## Licensing
 
-### Contributing Translations
-We welcome contributions to translate this documentation into other languages. To contribute:
-1. Fork the repository.
-2. Create a new file `README.<language_code>.md` (e.g., `README.de.md` for German).
-3. Translate the content of this `README.md` file.
-4. Submit a pull request with your changes.
+Folia Phantom --- Enterprise Edition is a **closed-source commercial
+product**.\
+All rights reserved. Redistribution, reverse-engineering, decompilation,
+or modification is strictly prohibited unless explicitly permitted in a
+written agreement.
 
----
+For licensing information, contract extensions, or internal distribution
+rights, refer to the official license document included with this
+product.
 
-## 日本語 (Japanese)
+## Support
 
-Folia Phantomは、Bukkitプラグインにパッチを適用し、高性能なFoliaサーバーとの互換性を確保するために設計された強力なツールです。プラグインのバイトコードを動的に変換し、スレッドセーフでないAPI呼び出しをFoliaがサポートするものに置き換えることで動作します。
+Enterprise customers may contact the designated support channel included
+in the license pack.\
+Bug reports, compatibility issues, and integration requests are handled
+under a private SLA, not through any public tracker.
 
-このプロジェクトは、マルチモジュールのMavenアプリケーションとして構成されており、オフラインでのパッチ適用のためのスタンドアロンなコマンドラインインターフェース（CLI）と、実行時に変換を行うBukkitプラグインの両方を提供します。
+# Folia Phantom --- エンタープライズ版
 
-### プロジェクト構成
+*レガシー Bukkit プラグインを Folia
+環境に安全適合させる高性能パッチエンジン*
 
-- `folia-phantom-core`: ASMトランスフォーマーや`PluginPatcher`ユーティリティを含む、必要不可欠なパッチ適用ロジックを格納したライブラリモジュール。
-- `folia-phantom-cli`: `core`モジュールに依存し、プラグインにパッチを適用するための実行可能なJARを生成するコマンドラインアプリケーション。
-- `folia-phantom-plugin`: 同じく`core`モジュールに依存し、サーバー環境での使用を目的としたBukkitプラグイン。
+## 概要
 
-### プロジェクトのビルド
+**Folia Phantom --- エンタープライズ版** は、レガシー Bukkit
+プラグインを **Folia のマルチスレッドサーバーアーキテクチャ**
+上で安全に動作させるための専用パッチエンジンです。\
+本システムは **ランタイム安全なバイトコード変換**
+を行い、スレッドセーフでない Bukkit API 呼び出しを Folia
+互換の実装へ置換しつつ、元のプラグイン動作を維持します。
 
-プロジェクトをビルドするには、[Apache Maven](https://maven.apache.org/install.html)とJava Development Kit（JDK）バージョン17以降が必要です。
+このエディションはクローズドソースであり、内部利用または契約者のみが使用できます。
 
-1.  **リポジトリをクローンする:**
-    ```bash
-    git clone https://github.com/your-username/folia-phantom.git
-    cd folia-phantom
-    ```
+本プロダクトは以下のマルチモジュール構成で提供されます：
 
-2.  **Mavenを使用してプロジェクトをビルドする:**
-    ```bash
+-   **Core Engine** --- ASM ベースのパッチロジックおよび変換ランタイム\
+-   **Command-Line Processor** --- オフラインでの JAR
+    パッチ生成を行う単体アプリケーション\
+-   **Server-Side Integration Plugin** --- 実行時に動的パッチを適用する
+    Folia プラグイン
+
+------------------------------------------------------------------------
+
+## モジュール構成
+
+### `folia-phantom-core`
+
+内部ライブラリであり、以下を含みます： - バイトコードアナライザ\
+- 命令トランスフォーマ\
+- 決定論的パッチャ\
+- Folia のスレッド・リージョンモデルに基づく互換ルールセット
+
+外部配布はされません。
+
+### `folia-phantom-cli`
+
+スタンドアロン CLI ツールであり、以下を提供します： - プラグイン JAR
+の一括パッチ生成\
+- 互換性検証\
+- 最適化済みの事前パッチビルド生成
+
+封印バイナリとして提供されます。
+
+### `folia-phantom-plugin`
+
+サーバ統合プラグイン： - プラグイン読み込み時の動的変換\
+- リージョンスレッド安全性の保証\
+- Folia の並列実行モデルとの整合性維持
+
+許可された Folia サーバでのみ使用可能。
+
+------------------------------------------------------------------------
+
+## ビルド方法（内部専用）
+
+JDK 17 以上と Apache Maven が必要です。\
+ソースコードへのアクセスは許可されたメンテナのみ行えます。
+
     mvn clean package
-    ```
 
-このコマンドは、ソースコードをコンパイルし、テストを実行して、成果物をパッケージ化します。生成されたJARファイルは、各モジュールの`target`ディレクトリに配置されます。
+生成物は各モジュールの `target/` に配置されます。
 
-### 使用方法
+------------------------------------------------------------------------
 
-#### コマンドラインインターフェース（CLI）
+## 使用方法
 
-CLIを使用すると、単一のJARファイルまたはJARファイルが含まれるディレクトリ全体にパッチを適用できます。
+### コマンドラインプロセッサ
 
-1.  **CLI JARの場所:**
-    実行可能なCLI JAR（`Folia-Phantom-CLI-1.0.0.jar`）は、ビルドが成功した後、`folia-phantom/folia-phantom-cli/target`ディレクトリにあります。
+#### 対話モード
 
-2.  **CLIの実行:**
-    -   **対話モード:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar
-        ```
-        パッチを適用したいJARファイルまたはディレクトリのパスを入力するよう求められます。
+    java -jar Folia-Phantom-CLI.jar
 
-    -   **直接モード:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar /path/to/your/plugin.jar
-        ```
-        `/path/to/your/plugin.jar`を、実際のプラグインファイルまたはディレクトリのパスに置き換えてください。
+対象となるファイルまたはディレクトリの入力を求められ、変換後の JAR
+は次のフォルダに出力されます：
 
-パッチが適用されたプラグインは、コマンドを実行したのと同じ場所に作成される`patched-plugins`ディレクトリに保存されます。
+    patched-plugins/
 
-#### Bukkitプラグイン
+#### 直接指定モード
 
-Bukkitプラグインは、実行時にパッチを提供するためにFoliaサーバーにインストールするように設計されています。
+    java -jar Folia-Phantom-CLI.jar /path/to/plugin.jar
 
-1.  **プラグインJARの場所:**
-    プラグインJAR（`Folia-Phantom-Plugin-1.0.0.jar`）は、`folia-phantom/folia-phantom-plugin/target`ディレクトリにあります。
+### サーバ統合プラグイン
 
-2.  **プラグインのインストール:**
-    JARファイルをサーバーの`plugins`ディレクトリにコピーし、サーバーを再起動します。
+1.  `Folia-Phantom-Plugin.jar` をサーバの `plugins/` に配置\
+2.  サーバ再起動\
+3.  読み込み時に変換処理が自動適用
 
-### 仕組み
+------------------------------------------------------------------------
 
-Folia Phantomは、[ASMバイトコード操作ライブラリ](https://asm.ow2.io/)を使用して、プラグインのJAR内のクラスファイルを検査・変更します。スレッドセーフでないBukkit APIメソッドへの呼び出しを特定し、Folia互換のメソッドに置き換えます。このプロセスは、それぞれが特定のAPIメソッド群を対象とする一連の`ClassTransformer`実装によって処理されます。
+## 技術仕様
 
-### 貢献
+エンジンは **ASM 9+**
+を用いてクラスロード時にバイトコードを解析・変換します。\
+以下のような非スレッドセーフ API を検出し置換します：
 
-Folia Phantomへの貢献を歓迎します！ [GitHubリポジトリ](https://github.com/your-username/folia-phantom)で、気軽にissueを立てたり、プルリクエストを送信してください。
+-   同期的 Bukkit スケジューラ呼び出し\
+-   リージョンスレッド外からのワールドアクセス\
+-   安全でないエンティティ／ブロック操作
 
-### 翻訳への貢献
-このドキュメントを他の言語に翻訳するための貢献を歓迎します。貢献するには：
-1. リポジトリをフォークしてください。
-2. 新しいファイル `README.<言語コード>.md` を作成してください（例：ドイツ語の場合は `README.de.md`）。
-3. この`README.md`ファイルの内容を翻訳してください。
-4. 変更内容を記載したプルリクエストを送信してください。
+Folia 互換 API への置換は決定論的であり、追跡ログが生成されます。
+
+------------------------------------------------------------------------
+
+## ライセンス
+
+Folia Phantom --- エンタープライズ版は **クローズドソース商用製品**
+です。\
+すべての権利は保護されています。再配布・逆コンパイル・改変は禁止されます（契約書で許可された場合を除く）。
+
+ライセンス、再配布権、契約拡張に関する情報は、本製品に含まれる公式文書を参照してください。
+
+------------------------------------------------------------------------
+
+## サポート
+
+エンタープライズ契約ユーザーは、ライセンスパッケージに記載された専用チャンネルからサポートへアクセスできます。\
+互換性問題、動作異常、機能追加要望は SLA に基づき非公開で対応します。
 

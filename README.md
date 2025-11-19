@@ -82,10 +82,6 @@ We welcome contributions to translate this documentation into other languages. T
 3. Translate the content of this `README.md` file.
 4. Submit a pull request with your changes.
 
-### License
-
-This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
-
 ---
 
 ## 日本語 (Japanese)
@@ -166,6 +162,3 @@ Folia Phantomへの貢献を歓迎します！ [GitHubリポジトリ](https://g
 3. この`README.md`ファイルの内容を翻訳してください。
 4. 変更内容を記載したプルリクエストを送信してください。
 
-### ライセンス
-
-このプロジェクトはMITライセンスの下でライセンスされています。詳細は[LICENSE](LICENSE)ファイルをご覧ください。

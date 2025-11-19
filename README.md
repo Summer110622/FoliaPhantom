@@ -1,8 +1,9 @@
 # Folia Phantom  
 *General-purpose compatibility patcher for running Bukkit plugins on Folia servers*
 
-## Overview
+![IMG_2380](https://github.com/user-attachments/assets/049f2f1e-e9fe-4cd6-8082-8939e99f698e)
 
+## Overview
 **Folia Phantom (General Edition)** is an open-source tool designed to make Bukkit plugins compatible with the **Folia multi-threaded server**.  
 It analyzes plugin classes and replaces thread-unsafe Bukkit API calls with their Folia-safe counterparts.
 

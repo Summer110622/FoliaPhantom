@@ -1,7 +1,0 @@
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/PluginPatcher.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/patcher/FoliaPatcher.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/transformer/ClassTransformer.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/transformer/impl/EntitySchedulerTransformer.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/transformer/impl/SchedulerClassTransformer.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/transformer/impl/ThreadSafetyTransformer.java
-/app/folia-phantom/folia-phantom-core/src/main/java/com/patch/foliaphantom/core/transformer/impl/WorldGenClassTransformer.java

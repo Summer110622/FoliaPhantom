@@ -13,6 +13,8 @@ import javafx.scene.paint.Color;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
+import com.patch.foliaphantom.core.PluginPatcher;
+import java.util.logging.Logger;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -215,10 +217,22 @@ public class FoliaPhantomApp extends Application {
                 Platform.runLater(() -> statusArea.appendText("Patching: " + file.getName() + "...\n"));
 
                 try {
-                    // Simulation of work (random duration)
-                    Thread.sleep((long) (500 + Math.random() * 1000));
-                } catch (InterruptedException e) {
+                    PluginPatcher patcher = new PluginPatcher(Logger.getLogger("FoliaPhantom"));
+                    String originalName = file.getName();
+                    String newName;
+                    int lastDotIndex = originalName.lastIndexOf('.');
+                    if (lastDotIndex > 0) {
+                        newName = originalName.substring(0, lastDotIndex) + "-patch.jar";
+                    } else {
+                        newName = originalName + "-patch.jar";
+                    }
+
+                    File outputFile = new File(file.getParent(), newName);
+                    patcher.patchPlugin(file, outputFile);
+                } catch (Exception e) {
                     e.printStackTrace();
+                    Platform.runLater(() -> statusArea
+                            .appendText("Error patching " + file.getName() + ": " + e.getMessage() + "\n"));
                 }
 
                 int current = completedFiles.incrementAndGet();

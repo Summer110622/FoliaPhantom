@@ -1,4 +1,4 @@
-# Folia Phantom
+# Folia Phantom 👻
 
 [English](#english) | [日本語 (Japanese)](#日本語-japanese)
 
@@ -6,159 +6,80 @@
 
 ## English
 
-Folia Phantom is a powerful tool designed to patch Bukkit plugins, ensuring their compatibility with the high-performance Folia server. It operates by dynamically transforming the plugin's bytecode to replace thread-unsafe API calls with their Folia-supported equivalents.
+**Folia Phantom** is a professional-grade bytecode transformation tool designed to bridge the gap between legacy Bukkit plugins and the high-performance [Folia](https://github.com/PaperMC/Folia) server.
 
-This project is structured as a multi-module Maven application, providing both a standalone command-line interface (CLI) for offline patching and a Bukkit plugin for on-the-fly transformations.
+By dynamically rewriting class files, Folia Phantom automatically converts thread-unsafe API calls (such as global schedulers and direct block modifications) into Folia-compatible region-based or asynchronous operations.
 
-### Project Structure
+### ✨ Key Features
 
-- `folia-phantom-core`: A library module containing the essential patching logic, including the ASM transformers and the `PluginPatcher` utility.
-- `folia-phantom-cli`: A command-line application that depends on the `core` module and produces a runnable JAR for patching plugins.
-- `folia-phantom-plugin`: A Bukkit plugin that also depends on the `core` module and is intended for server environments.
+- **Automated Patching**: Seamlessly converts `BukkitScheduler` and `BukkitRunnable` to Folia schedulers.
+- **Thread Safety Enforcement**: Automatically wraps `Block.setType` and other world-modifying calls to execute on the correct region threads.
+- **Modern Pro GUI**: A premium, glassmorphism-styled Desktop UI for easy batch processing.
+- **High Performance**: Parallel processing with `ForkJoinPool` and fast-fail bytecode scanning for lightning-fast patching.
+- **Compatibility First**: Automatically handles JAR signatures and updates `plugin.yml` with the `folia-supported` flag.
+- **CLI & Plugin Support**: Available as a standalone GUI, CLI tool, or a server-side plugin for on-the-fly patching.
 
-### Building the Project
+### 🏗️ Project Structure
 
-To build the project, you will need [Apache Maven](https://maven.apache.org/install.html) and a Java Development Kit (JDK) version 17 or higher.
+- `folia-phantom-core`: The heart of the project containing ASM transformers and patching logic.
+- `folia-phantom-gui`: Modern JavaFX application for desktop environments.
+- `folia-phantom-cli`: Command-line tool for automated workflows and headless environments.
+- `folia-phantom-plugin`: Bukkit plugin implementation for real-time server-side transformation.
 
-1.  **Clone the repository:**
-    ```bash
-    git clone https://github.com/your-username/folia-phantom.git
-    cd folia-phantom
-    ```
+### 🚀 Getting Started
 
-2.  **Build the project using Maven:**
-    ```bash
-    mvn clean package
-    ```
+#### Building from Source
+Requires JDK 17+ and Maven.
+```bash
+mvn clean package
+```
+Binary artifacts will be available in the `target` directories of each module.
 
-This command will compile the source code, run any tests, and package the artifacts. The resulting JAR files will be located in the `target` directory of their respective modules.
-
-### Usage
-
-#### Command-Line Interface (CLI)
-
-The CLI allows you to patch a single JAR file or an entire directory of JARs.
-
-1.  **Locate the CLI JAR:**
-    The runnable CLI JAR, named `Folia-Phantom-CLI-1.0.0.jar`, can be found in the `folia-phantom/folia-phantom-cli/target` directory after a successful build.
-
-2.  **Run the CLI:**
-    -   **Interactive Mode:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar
-        ```
-        The application will prompt you to enter the path to the JAR file or directory you wish to patch.
-
-    -   **Direct Mode:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar /path/to/your/plugin.jar
-        ```
-        Replace `/path/to/your/plugin.jar` with the actual path to the plugin file or directory.
-
-Patched plugins will be saved in the `patched-plugins` directory, which is created in the same location where you run the command.
-
-#### Bukkit Plugin
-
-The Bukkit plugin is designed to be installed on a Folia server to provide on-the-fly patching.
-
-1.  **Locate the Plugin JAR:**
-    The plugin JAR, named `Folia-Phantom-Plugin-1.0.0.jar`, can be found in the `folia-phantom/folia-phantom-plugin/target` directory.
-
-2.  **Install the Plugin:**
-    Copy the JAR file into your server's `plugins` directory and restart the server.
-
-### How It Works
-
-Folia Phantom uses the [ASM bytecode manipulation library](https://asm.ow2.io/) to inspect and modify the class files within a plugin's JAR. It identifies and replaces calls to Bukkit API methods that are not thread-safe with their Folia-compatible counterparts. This process is handled by a series of `ClassTransformer` implementations, each targeting a specific set of API methods.
-
-### Contributing
-
-Contributions to Folia Phantom are welcome! Please feel free to open an issue or submit a pull request on our [GitHub repository](https://github.com/your-username/folia-phantom).
-
-### Contributing Translations
-We welcome contributions to translate this documentation into other languages. To contribute:
-1. Fork the repository.
-2. Create a new file `README.<language_code>.md` (e.g., `README.de.md` for German).
-3. Translate the content of this `README.md` file.
-4. Submit a pull request with your changes.
+#### Using the GUI
+1. Run `Folia-Phantom-GUI-1.0.0.jar`.
+2. Drag and drop your plugin JARs into the window.
+3. Click **Patch All Plugins**.
 
 ---
 
 ## 日本語 (Japanese)
 
-Folia Phantomは、Bukkitプラグインにパッチを適用し、高性能なFoliaサーバーとの互換性を確保するために設計された強力なツールです。プラグインのバイトコードを動的に変換し、スレッドセーフでないAPI呼び出しをFoliaがサポートするものに置き換えることで動作します。
+**Folia Phantom** は、レガシーな Bukkit プラグインと高性能な [Folia](https://github.com/PaperMC/Folia) サーバーの互換性を確保するためのプロフェッショナル向けバイトコード変換ツールです。
 
-このプロジェクトは、マルチモジュールのMavenアプリケーションとして構成されており、オフラインでのパッチ適用のためのスタンドアロンなコマンドラインインターフェース（CLI）と、実行時に変換を行うBukkitプラグインの両方を提供します。
+クラスファイルを動的に書き換えることで、スレッドセーフでない API 呼び出し（グローバルスケジューラや直接的なブロック操作など）を、Folia がサポートするリージョンベースまたは非同期の操作に自動的に変換します。
 
-### プロジェクト構成
+### ✨ 主な機能
 
-- `folia-phantom-core`: ASMトランスフォーマーや`PluginPatcher`ユーティリティを含む、必要不可欠なパッチ適用ロジックを格納したライブラリモジュール。
-- `folia-phantom-cli`: `core`モジュールに依存し、プラグインにパッチを適用するための実行可能なJARを生成するコマンドラインアプリケーション。
-- `folia-phantom-plugin`: 同じく`core`モジュールに依存し、サーバー環境での使用を目的としたBukkitプラグイン。
+- **自動パッチ適用**: `BukkitScheduler` や `BukkitRunnable` を Folia のスケジューラにシームレスに変換。
+- **スレッド安全性の強化**: `Block.setType` などの世界操作を、正しいリージョンスレッドで実行するように自動的にラッピング。
+- **モダンな GUI**: 一括処理を容易にする、グラスモーフィズムデザインのプレミアムなデスクトップ UI。
+- **高いパフォーマンス**: `ForkJoinPool` による並列処理と、高速なバイトコードスキャニングによる圧倒的な処理速度。
+- **高い互換性**: JAR 署名を自動的に処理し、`plugin.yml` に `folia-supported` フラグを自動追加。
+- **多様な実行形態**: GUI、CLI、およびサーバーサイドプラグイン（リアルタイム変換）の全形態をサポート。
 
-### プロジェクトのビルド
+### 🏗️ プロジェクト構成
 
-プロジェクトをビルドするには、[Apache Maven](https://maven.apache.org/install.html)とJava Development Kit（JDK）バージョン17以降が必要です。
+- `folia-phantom-core`: ASM トランスフォーマーとパッチロジックを含むコアライブラリ。
+- `folia-phantom-gui`: デスクトップ環境向けのモダンな JavaFX アプリケーション。
+- `folia-phantom-cli`: 自動化ワークフローやヘッドレス環境向けの CLI ツール。
+- `folia-phantom-plugin`: サーバー上でのリアルタイム変換を実現する Bukkit プラグイン。
 
-1.  **リポジトリをクローンする:**
-    ```bash
-    git clone https://github.com/your-username/folia-phantom.git
-    cd folia-phantom
-    ```
+### 🚀 はじめかた
 
-2.  **Mavenを使用してプロジェクトをビルドする:**
-    ```bash
-    mvn clean package
-    ```
+#### ビルド
+JDK 17 以上と Maven が必要です。
+```bash
+mvn clean package
+```
+ビルドされた JAR は各モジュールの `target` ディレクトリに生成されます。
 
-このコマンドは、ソースコードをコンパイルし、テストを実行して、成果物をパッケージ化します。生成されたJARファイルは、各モジュールの`target`ディレクトリに配置されます。
+#### GUI の使用方法
+1. `Folia-Phantom-GUI-1.0.0.jar` を実行します。
+2. プラグインの JAR ファイルをウィンドウにドラッグ＆ドロップします。
+3. **Patch All Plugins** をクリックします。
 
-### 使用方法
+---
 
-#### コマンドラインインターフェース（CLI）
-
-CLIを使用すると、単一のJARファイルまたはJARファイルが含まれるディレクトリ全体にパッチを適用できます。
-
-1.  **CLI JARの場所:**
-    実行可能なCLI JAR（`Folia-Phantom-CLI-1.0.0.jar`）は、ビルドが成功した後、`folia-phantom/folia-phantom-cli/target`ディレクトリにあります。
-
-2.  **CLIの実行:**
-    -   **対話モード:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar
-        ```
-        パッチを適用したいJARファイルまたはディレクトリのパスを入力するよう求められます。
-
-    -   **直接モード:**
-        ```bash
-        java -jar Folia-Phantom-CLI-1.0.0.jar /path/to/your/plugin.jar
-        ```
-        `/path/to/your/plugin.jar`を、実際のプラグインファイルまたはディレクトリのパスに置き換えてください。
-
-パッチが適用されたプラグインは、コマンドを実行したのと同じ場所に作成される`patched-plugins`ディレクトリに保存されます。
-
-#### Bukkitプラグイン
-
-Bukkitプラグインは、実行時にパッチを提供するためにFoliaサーバーにインストールするように設計されています。
-
-1.  **プラグインJARの場所:**
-    プラグインJAR（`Folia-Phantom-Plugin-1.0.0.jar`）は、`folia-phantom/folia-phantom-plugin/target`ディレクトリにあります。
-
-2.  **プラグインのインストール:**
-    JARファイルをサーバーの`plugins`ディレクトリにコピーし、サーバーを再起動します。
-
-### 仕組み
-
-Folia Phantomは、[ASMバイトコード操作ライブラリ](https://asm.ow2.io/)を使用して、プラグインのJAR内のクラスファイルを検査・変更します。スレッドセーフでないBukkit APIメソッドへの呼び出しを特定し、Folia互換のメソッドに置き換えます。このプロセスは、それぞれが特定のAPIメソッド群を対象とする一連の`ClassTransformer`実装によって処理されます。
-
-### 貢献
-
-Folia Phantomへの貢献を歓迎します！ [GitHubリポジトリ](https://github.com/your-username/folia-phantom)で、気軽にissueを立てたり、プルリクエストを送信してください。
-
-### 翻訳への貢献
-このドキュメントを他の言語に翻訳するための貢献を歓迎します。貢献するには：
-1. リポジトリをフォークしてください。
-2. 新しいファイル `README.<言語コード>.md` を作成してください（例：ドイツ語の場合は `README.de.md`）。
-3. この`README.md`ファイルの内容を翻訳してください。
-4. 変更内容を記載したプルリクエストを送信してください。
-
+### 📄 License
+Licensed under the **MARV License**. See `LICENSE` for more details.
+Copyright © 2025 **Marv**.

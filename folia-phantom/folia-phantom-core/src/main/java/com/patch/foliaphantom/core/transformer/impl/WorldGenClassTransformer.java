@@ -1,10 +1,23 @@
+/*
+ * Folia Phantom - World Generation Class Transformer
+ * 
+ * Copyright (c) 2025 Marv
+ * Licensed under MARV License
+ */
 package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.*;
-
 import java.util.logging.Logger;
 
+/**
+ * Transforms world creation and generator related calls.
+ * 
+ * <p>
+ * Redirects Bukkit.createWorld and related calls to async/safe alternatives
+ * provided by FoliaPatcher.
+ * </p>
+ */
 public class WorldGenClassTransformer implements ClassTransformer {
     private final Logger logger;
 
@@ -14,48 +27,42 @@ public class WorldGenClassTransformer implements ClassTransformer {
 
     @Override
     public ClassVisitor createVisitor(ClassVisitor next) {
-        return new WorldGenClassVisitor(next);
+        return new WorldGenVisitor(next);
     }
 
-    private static class WorldGenClassVisitor extends ClassVisitor {
-        public WorldGenClassVisitor(ClassVisitor classVisitor) {
-            super(Opcodes.ASM9, classVisitor);
+    private static class WorldGenVisitor extends ClassVisitor {
+        public WorldGenVisitor(ClassVisitor cv) {
+            super(Opcodes.ASM9, cv);
         }
 
         @Override
-        public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-            MethodVisitor mv = super.visitMethod(access, name, desc, signature, exceptions);
-            return new WorldGenMethodVisitor(mv);
+        public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
+            return new WorldGenMethodVisitor(super.visitMethod(access, name, desc, sig, ex));
         }
     }
 
     private static class WorldGenMethodVisitor extends MethodVisitor {
-        private static final String PATCHER_INTERNAL_NAME = "com/patch/foliaphantom/core/patcher/FoliaPatcher";
+        private static final String PATCHER = "com/patch/foliaphantom/core/patcher/FoliaPatcher";
 
-        public WorldGenMethodVisitor(MethodVisitor methodVisitor) {
-            super(Opcodes.ASM9, methodVisitor);
+        public WorldGenMethodVisitor(MethodVisitor mv) {
+            super(Opcodes.ASM9, mv);
         }
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            // Intercept ChunkGenerator related calls
-            if (opcode == Opcodes.INVOKEINTERFACE && owner.equals("org/bukkit/plugin/Plugin")) {
-                if (name.equals("getDefaultWorldGenerator")
-                        && desc.equals("(Ljava/lang/String;Ljava/lang/String;)Lorg/bukkit/generator/ChunkGenerator;")) {
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER_INTERNAL_NAME, "getDefaultWorldGenerator",
-                            "(Lorg/bukkit/plugin/Plugin;Ljava/lang/String;Ljava/lang/String;)Lorg/bukkit/generator/ChunkGenerator;",
-                            false);
-                    return;
-                }
+            // Redirect Plugin.getDefaultWorldGenerator
+            if ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator")) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, name,
+                        "(Lorg/bukkit/plugin/Plugin;" + desc.substring(1), false);
+                return;
             }
-            // Intercept calls to Bukkit.createWorld
-            if (opcode == Opcodes.INVOKESTATIC && owner.equals("org/bukkit/Bukkit")) {
-                if (name.equals("createWorld") && desc.equals("(Lorg/bukkit/WorldCreator;)Lorg/bukkit/World;")) {
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER_INTERNAL_NAME, "createWorld",
-                            "(Lorg/bukkit/WorldCreator;)Lorg/bukkit/World;", false);
-                    return;
-                }
+
+            // Redirect Bukkit.createWorld or WorldCreator.createWorld
+            if (name.equals("createWorld") && desc.equals("(Lorg/bukkit/WorldCreator;)Lorg/bukkit/World;")) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "createWorld", desc, false);
+                return;
             }
+
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
     }

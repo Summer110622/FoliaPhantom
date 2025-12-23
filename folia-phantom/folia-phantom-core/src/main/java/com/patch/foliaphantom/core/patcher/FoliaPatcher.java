@@ -1,10 +1,19 @@
+/*
+ * Folia Phantom - Runtime Patcher Bridge
+ * 
+ * This class provides the redirected method implementations that patched plugins
+ * call at runtime. It bridges standard Bukkit/Paper API calls to Folia-specific
+ * region-based or async schedulers.
+ * 
+ * Copyright (c) 2025 Marv
+ * Licensed under MARV License
+ */
 package com.patch.foliaphantom.core.patcher;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
-import org.bukkit.WorldCreator;
 import org.bukkit.block.Block;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
@@ -16,142 +25,120 @@ import java.util.Map;
 import java.util.concurrent.*;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
+import java.util.logging.Logger;
 
+/**
+ * Runtime bridge for Folia compatibility.
+ * 
+ * <p>
+ * This class is bundled into patched plugins and serves as the destination
+ * for redirected method calls. It handles the complexity of mapping global
+ * scheduler calls to Folia's region-based or asynchronous schedulers.
+ * </p>
+ */
 public final class FoliaPatcher {
-    private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor();
-    private static final AtomicInteger taskIdCounter = new AtomicInteger(Integer.MAX_VALUE / 2);
+    private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
+    private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
+        Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
+        t.setDaemon(true);
+        return t;
+    });
+    private static final AtomicInteger taskIdCounter = new AtomicInteger(1000000);
     private static final Map<Integer, ScheduledTask> runningTasks = new ConcurrentHashMap<>();
 
+    /**
+     * The plugin instance used for scheduling.
+     * This is typically the patched plugin itself.
+     */
     public static Plugin plugin;
 
-    public static final Map<String, Boolean> REPLACEMENT_MAP = new ConcurrentHashMap<>(Map.ofEntries(
-            Map.entry("runTask(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskLater(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;J)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskTimer(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;JJ)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskAsynchronously(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskLaterAsynchronously(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;J)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskTimerAsynchronously(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;JJ)Lorg/bukkit/scheduler/BukkitTask;", true),
-            Map.entry("runTaskTimerAsynchronously(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scheduler/BukkitRunnable;JJ)Lorg/bukkit/scheduler/BukkitTask;", true),
-            // Legacy methods returning int
-            Map.entry("scheduleSyncDelayedTask(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;J)I", true),
-            Map.entry("scheduleSyncRepeatingTask(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;JJ)I", true),
-            Map.entry("scheduleAsyncDelayedTask(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;J)I", true),
-            Map.entry("scheduleAsyncRepeatingTask(Lorg/bukkit/plugin/Plugin;Ljava/lang/Runnable;JJ)I", true),
-            // Cancel tasks
-            Map.entry("cancelTask(I)V", true),
-            Map.entry("cancelTasks(Lorg/bukkit/plugin/Plugin;)V", true),
-            Map.entry("cancelAllTasks()V", true)
-    ));
-
-    public static final Map<String, String> UNSAFE_METHOD_MAP = new ConcurrentHashMap<>();
-
-    static {
-        // Format: <Original Method Signature, Patcher Method Name>
-        UNSAFE_METHOD_MAP.put("setType(Lorg/bukkit/Material;)V", "safeSetType");
-        UNSAFE_METHOD_MAP.put("setType(Lorg/bukkit/Material;Z)V", "safeSetTypeWithPhysics");
-
-
-        // World Generation related methods
-        REPLACEMENT_MAP.put("getDefaultWorldGenerator(Ljava/lang/String;Ljava/lang/String;)Lorg/bukkit/generator/ChunkGenerator;", true);
-        REPLACEMENT_MAP.put("createWorld(Lorg/bukkit/WorldCreator;)Lorg/bukkit/World;", true);
-        // BukkitRunnable is handled by transformer, no need for separate map entry if signature is the same
+    private FoliaPatcher() {
     }
-
-    private FoliaPatcher() {}
 
     // --- World Generation Wrappers ---
 
-    public static org.bukkit.generator.ChunkGenerator getDefaultWorldGenerator(Plugin plugin, String worldName, String id) {
+    /**
+     * Wraps a ChunkGenerator to ensure Folia compatibility.
+     */
+    public static org.bukkit.generator.ChunkGenerator getDefaultWorldGenerator(Plugin plugin, String worldName,
+            String id) {
         org.bukkit.generator.ChunkGenerator originalGenerator = plugin.getDefaultWorldGenerator(worldName, id);
-        if (originalGenerator == null) return null;
+        if (originalGenerator == null)
+            return null;
         return new FoliaChunkGenerator(originalGenerator);
     }
 
+    /**
+     * Safely creates a world by offloading to a dedicated thread, as world creation
+     * in Folia/Paper can be sensitive to the calling thread context.
+     */
     public static World createWorld(org.bukkit.WorldCreator creator) {
-        System.out.println("[FoliaPhantom] Intercepted createWorld call. Using creator.createWorld() on a dedicated thread...");
-        Callable<World> task = creator::createWorld;
-        Future<World> future = worldGenExecutor.submit(task);
+        LOGGER.info("[FoliaPhantom] Intercepting world creation: " + creator.name());
+        Future<World> future = worldGenExecutor.submit(creator::createWorld);
         try {
-            // Block the calling thread (from the plugin) until our executor thread is done.
             return future.get();
         } catch (InterruptedException | ExecutionException e) {
-            System.err.println("[FoliaPhantom] Failed to create world via creator.createWorld().");
-            e.printStackTrace();
+            LOGGER.severe("[FoliaPhantom] Failed to create world '" + creator.name() + "': " + e.getMessage());
             return null;
         }
     }
 
+    /**
+     * Internal wrapper for Folia's ChunkGenerator.
+     */
     public static class FoliaChunkGenerator extends org.bukkit.generator.ChunkGenerator {
-            final org.bukkit.generator.ChunkGenerator original;
+        private final org.bukkit.generator.ChunkGenerator original;
 
         public FoliaChunkGenerator(org.bukkit.generator.ChunkGenerator original) {
             this.original = original;
-            System.out.println("[FoliaPhantom-WorldGen] Wrapping ChunkGenerator: " + original.getClass().getName());
-        }
-
-        private void log(String methodName) {
-            System.out.println("[FoliaPhantom-WorldGen] FoliaChunkGenerator." + methodName + " called on thread: " + Thread.currentThread().getName());
         }
 
         @Override
         public ChunkData generateChunkData(World world, java.util.Random random, int x, int z, BiomeGrid biome) {
-            log("generateChunkData");
             return original.generateChunkData(world, random, x, z, biome);
         }
 
         @Override
         public boolean shouldGenerateNoise() {
-            log("shouldGenerateNoise");
             return original.shouldGenerateNoise();
         }
 
         @Override
         public boolean shouldGenerateSurface() {
-            log("shouldGenerateSurface");
             return original.shouldGenerateSurface();
         }
 
         @Override
         public boolean shouldGenerateBedrock() {
-            log("shouldGenerateBedrock");
             return original.shouldGenerateBedrock();
         }
 
         @Override
         public boolean shouldGenerateCaves() {
-            log("shouldGenerateCaves");
             return original.shouldGenerateCaves();
         }
 
         @Override
         public boolean shouldGenerateDecorations() {
-            log("shouldGenerateDecorations");
             return original.shouldGenerateDecorations();
         }
 
         @Override
         public boolean shouldGenerateMobs() {
-            log("shouldGenerateMobs");
             return original.shouldGenerateMobs();
         }
 
         @Override
         public Location getFixedSpawnLocation(World world, java.util.Random random) {
-            log("getFixedSpawnLocation");
             return original.getFixedSpawnLocation(world, random);
         }
     }
 
+    // --- Helper Methods ---
+
     private static Location getFallbackLocation() {
-        World mainWorld = Bukkit.getWorld("world");
-        if (mainWorld != null) {
-            return mainWorld.getSpawnLocation();
-        }
-        List<World> worlds = Bukkit.getWorlds();
-        if (!worlds.isEmpty()) {
-            return worlds.get(0).getSpawnLocation();
-        }
-        return null;
+        World mainWorld = Bukkit.getWorlds().get(0);
+        return mainWorld != null ? mainWorld.getSpawnLocation() : null;
     }
 
     private static void cancelTaskById(int taskId) {
@@ -162,9 +149,8 @@ public final class FoliaPatcher {
     }
 
     private static Runnable wrapRunnable(Runnable original, int taskId, boolean isRepeating) {
-        if (isRepeating) {
+        if (isRepeating)
             return original;
-        }
         return () -> {
             try {
                 original.run();
@@ -174,62 +160,107 @@ public final class FoliaPatcher {
         };
     }
 
+    // --- Scheduler Redirections ---
+
     public static BukkitTask runTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable) {
         int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
+        Runnable wrapped = wrapRunnable(runnable, taskId, false);
         Location loc = getFallbackLocation();
-        ScheduledTask foliaTask = loc != null
-                ? Bukkit.getRegionScheduler().run(plugin, loc, t -> wrappedRunnable.run())
-                : Bukkit.getGlobalRegionScheduler().run(plugin, t -> wrappedRunnable.run());
+
+        ScheduledTask foliaTask = (loc != null)
+                ? Bukkit.getRegionScheduler().run(plugin, loc, t -> wrapped.run())
+                : Bukkit.getGlobalRegionScheduler().run(plugin, t -> wrapped.run());
+
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
     }
 
     public static BukkitTask runTaskLater(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay) {
         int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
+        Runnable wrapped = wrapRunnable(runnable, taskId, false);
         Location loc = getFallbackLocation();
-        ScheduledTask foliaTask = loc != null
-                ? Bukkit.getRegionScheduler().runDelayed(plugin, loc, t -> wrappedRunnable.run(), Math.max(1, delay))
-                : Bukkit.getGlobalRegionScheduler().runDelayed(plugin, t -> wrappedRunnable.run(), Math.max(1, delay));
+        long finalDelay = Math.max(1, delay);
+
+        ScheduledTask foliaTask = (loc != null)
+                ? Bukkit.getRegionScheduler().runDelayed(plugin, loc, t -> wrapped.run(), finalDelay)
+                : Bukkit.getGlobalRegionScheduler().runDelayed(plugin, t -> wrapped.run(), finalDelay);
+
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
     }
 
-    public static BukkitTask runTaskTimer(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay, long period) {
-        Location loc = getFallbackLocation();
-        ScheduledTask foliaTask = loc != null
-                ? Bukkit.getRegionScheduler().runAtFixedRate(plugin, loc, t -> runnable.run(), Math.max(1, delay), Math.max(1, period))
-                : Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> runnable.run(), Math.max(1, delay), Math.max(1, period));
+    public static BukkitTask runTaskTimer(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay,
+            long period) {
         int taskId = taskIdCounter.getAndIncrement();
+        Location loc = getFallbackLocation();
+        long d = Math.max(1, delay);
+        long p = Math.max(1, period);
+
+        ScheduledTask foliaTask = (loc != null)
+                ? Bukkit.getRegionScheduler().runAtFixedRate(plugin, loc, t -> runnable.run(), d, p)
+                : Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> runnable.run(), d, p);
+
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
     }
 
     public static BukkitTask runTaskAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable) {
         int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
-        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runNow(plugin, t -> wrappedRunnable.run());
+        Runnable wrapped = wrapRunnable(runnable, taskId, false);
+        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runNow(plugin, t -> wrapped.run());
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, false, foliaTask);
     }
 
-    public static BukkitTask runTaskLaterAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay) {
+    public static BukkitTask runTaskLaterAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable,
+            long delay) {
         int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
-        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runDelayed(plugin, t -> wrappedRunnable.run(), delay * 50, TimeUnit.MILLISECONDS);
+        Runnable wrapped = wrapRunnable(runnable, taskId, false);
+        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runDelayed(plugin, t -> wrapped.run(), delay * 50,
+                TimeUnit.MILLISECONDS);
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, false, foliaTask);
     }
 
-    public static BukkitTask runTaskTimerAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay, long period) {
-        // This now handles both Runnable and BukkitRunnable, as BukkitRunnable is a Runnable.
-        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runAtFixedRate(plugin, t -> runnable.run(), delay * 50, period * 50, TimeUnit.MILLISECONDS);
+    public static BukkitTask runTaskTimerAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable,
+            long delay, long period) {
         int taskId = taskIdCounter.getAndIncrement();
+        ScheduledTask foliaTask = Bukkit.getAsyncScheduler().runAtFixedRate(plugin, t -> runnable.run(), delay * 50,
+                period * 50, TimeUnit.MILLISECONDS);
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, false, foliaTask);
     }
 
+    // --- BukkitRunnable Instance Method Wrappers ---
+
+    public static BukkitTask runTask_onRunnable(Runnable runnable, Plugin plugin) {
+        return runTask(null, plugin, runnable);
+    }
+
+    public static BukkitTask runTaskLater_onRunnable(Runnable runnable, Plugin plugin, long delay) {
+        return runTaskLater(null, plugin, runnable, delay);
+    }
+
+    public static BukkitTask runTaskTimer_onRunnable(Runnable runnable, Plugin plugin, long delay, long period) {
+        return runTaskTimer(null, plugin, runnable, delay, period);
+    }
+
+    public static BukkitTask runTaskAsynchronously_onRunnable(Runnable runnable, Plugin plugin) {
+        return runTaskAsynchronously(null, plugin, runnable);
+    }
+
+    public static BukkitTask runTaskLaterAsynchronously_onRunnable(Runnable runnable, Plugin plugin, long delay) {
+        return runTaskLaterAsynchronously(null, plugin, runnable, delay);
+    }
+
+    public static BukkitTask runTaskTimerAsynchronously_onRunnable(Runnable runnable, Plugin plugin, long delay,
+            long period) {
+        return runTaskTimerAsynchronously(null, plugin, runnable, delay, period);
+    }
+
+    /**
+     * Implementation of BukkitTask for Folia.
+     */
     public static final class FoliaBukkitTask implements BukkitTask {
         private final int taskId;
         private final Plugin owner;
@@ -245,32 +276,68 @@ public final class FoliaPatcher {
             this.underlyingTask = underlyingTask;
         }
 
-        @Override public int getTaskId() { return taskId; }
-        @Override public Plugin getOwner() { return owner; }
-        @Override public boolean isSync() { return isSync; }
-        @Override public boolean isCancelled() { return underlyingTask.isCancelled(); }
+        @Override
+        public int getTaskId() {
+            return taskId;
+        }
 
-        @Override public void cancel() {
+        @Override
+        public Plugin getOwner() {
+            return owner;
+        }
+
+        @Override
+        public boolean isSync() {
+            return isSync;
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return underlyingTask.isCancelled();
+        }
+
+        @Override
+        public void cancel() {
             if (!isCancelled()) {
                 cancellationCallback.accept(this.taskId);
             }
         }
     }
 
-    public static int scheduleSyncDelayedTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay) {
-        return runTaskLater(ignored, plugin, runnable, delay).getTaskId();
+    // --- Thread-Safe Block Operations ---
+
+    public static void safeSetType(Block block, org.bukkit.Material material) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setType(material);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
+        }
     }
 
-    public static int scheduleSyncRepeatingTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay, long period) {
-        return runTaskTimer(ignored, plugin, runnable, delay, period).getTaskId();
+    public static void safeSetTypeWithPhysics(Block block, org.bukkit.Material material, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setType(material, applyPhysics);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
+        }
     }
 
-    public static int scheduleAsyncDelayedTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay) {
-        return runTaskLaterAsynchronously(ignored, plugin, runnable, delay).getTaskId();
+    // --- Legacy / Int-returning Method Mappings ---
+
+    public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {
+        return runTaskLater(s, p, r, d).getTaskId();
     }
 
-    public static int scheduleAsyncRepeatingTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay, long period) {
-        return runTaskTimerAsynchronously(ignored, plugin, runnable, delay, period).getTaskId();
+    public static int scheduleSyncRepeatingTask(BukkitScheduler s, Plugin p, Runnable r, long d, long pr) {
+        return runTaskTimer(s, p, r, d, pr).getTaskId();
+    }
+
+    public static int scheduleAsyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {
+        return runTaskLaterAsynchronously(s, p, r, d).getTaskId();
+    }
+
+    public static int scheduleAsyncRepeatingTask(BukkitScheduler s, Plugin p, Runnable r, long d, long pr) {
+        return runTaskTimerAsynchronously(s, p, r, d, pr).getTaskId();
     }
 
     public static void cancelTask(BukkitScheduler ignored, int taskId) {
@@ -279,76 +346,21 @@ public final class FoliaPatcher {
 
     public static void cancelTasks(BukkitScheduler ignored, Plugin plugin) {
         runningTasks.entrySet().removeIf(entry -> {
-            ScheduledTask scheduledTask = entry.getValue();
-            boolean ownedByPlugin = scheduledTask.getOwningPlugin().equals(plugin);
-            if (ownedByPlugin && !scheduledTask.isCancelled()) {
-                scheduledTask.cancel();
+            ScheduledTask task = entry.getValue();
+            if (task.getOwningPlugin().equals(plugin)) {
+                if (!task.isCancelled())
+                    task.cancel();
+                return true;
             }
-            return ownedByPlugin;
+            return false;
         });
     }
 
     public static void cancelAllTasks() {
         runningTasks.values().forEach(task -> {
-            if (!task.isCancelled()) {
+            if (!task.isCancelled())
                 task.cancel();
-            }
         });
         runningTasks.clear();
-    }
-
-    // --- Entity Scheduler Wrappers ---
-
-    public static BukkitTask folia_runTask(Entity entity, Plugin plugin, Runnable runnable) {
-        int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
-        ScheduledTask foliaTask = entity.getScheduler().run(plugin, t -> wrappedRunnable.run(), null);
-        runningTasks.put(taskId, foliaTask);
-        return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
-    }
-
-    public static BukkitTask folia_runTaskLater(Entity entity, Plugin plugin, Runnable runnable, long delay) {
-        int taskId = taskIdCounter.getAndIncrement();
-        Runnable wrappedRunnable = wrapRunnable(runnable, taskId, false);
-        ScheduledTask foliaTask = entity.getScheduler().runDelayed(plugin, t -> wrappedRunnable.run(), null, Math.max(1, delay));
-        runningTasks.put(taskId, foliaTask);
-        return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
-    }
-
-    public static BukkitTask folia_runTaskTimer(Entity entity, Plugin plugin, Runnable runnable, long delay, long period) {
-        ScheduledTask foliaTask = entity.getScheduler().runAtFixedRate(plugin, t -> runnable.run(), null, Math.max(1, delay), Math.max(1, period));
-        int taskId = taskIdCounter.getAndIncrement();
-        runningTasks.put(taskId, foliaTask);
-        return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
-    }
-
-    public static int folia_scheduleSyncDelayedTask(Entity entity, Plugin plugin, Runnable runnable, long delay) {
-        return folia_runTaskLater(entity, plugin, runnable, delay).getTaskId();
-    }
-
-    public static int folia_scheduleSyncRepeatingTask(Entity entity, Plugin plugin, Runnable runnable, long delay, long period) {
-        return folia_runTaskTimer(entity, plugin, runnable, delay, period).getTaskId();
-    }
-
-    // --- Thread-Safety Wrappers ---
-
-    public static void safeSetType(Block block, org.bukkit.Material material) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> {
-                block.setType(material);
-            });
-        }
-    }
-
-    public static void safeSetTypeWithPhysics(Block block, org.bukkit.Material material, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> {
-                block.setType(material, applyPhysics);
-            });
-        }
     }
 }

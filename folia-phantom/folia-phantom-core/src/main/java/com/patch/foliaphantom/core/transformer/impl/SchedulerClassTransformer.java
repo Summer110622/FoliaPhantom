@@ -1,12 +1,23 @@
+/*
+ * Folia Phantom - Scheduler Class Transformer
+ * 
+ * Copyright (c) 2025 Marv
+ * Licensed under MARV License
+ */
 package com.patch.foliaphantom.core.transformer.impl;
 
-import com.patch.foliaphantom.core.patcher.FoliaPatcher;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.*;
-
-import java.util.logging.Level;
 import java.util.logging.Logger;
 
+/**
+ * Transforms BukkitScheduler and BukkitRunnable method calls.
+ * 
+ * <p>
+ * Redirects standard scheduler calls to FoliaPatcher utility methods
+ * that handle Folia's region-based scheduling.
+ * </p>
+ */
 public class SchedulerClassTransformer implements ClassTransformer {
     private final Logger logger;
 
@@ -15,23 +26,15 @@ public class SchedulerClassTransformer implements ClassTransformer {
     }
 
     @Override
-    public byte[] transform(byte[] originalBytes) {
-        String className = "Unknown";
-        try {
-            ClassReader cr = new ClassReader(originalBytes);
-            className = cr.getClassName();
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            ClassVisitor cv = new SchedulerClassVisitor(cw);
-            cr.accept(cv, ClassReader.EXPAND_FRAMES);
-            return cw.toByteArray();
-        } catch (Exception e) {
-            logger.log(Level.WARNING, "[FoliaPhantom] Failed to transform class " + className + ". Returning original bytes.", e);
-            return originalBytes;
-        }
+    public ClassVisitor createVisitor(ClassVisitor next) {
+        return new SchedulerClassVisitor(next);
     }
 
     private static class SchedulerClassVisitor extends ClassVisitor {
-        public SchedulerClassVisitor(ClassVisitor cv) { super(Opcodes.ASM9, cv); }
+        public SchedulerClassVisitor(ClassVisitor cv) {
+            super(Opcodes.ASM9, cv);
+        }
+
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             return new SchedulerMethodVisitor(super.visitMethod(access, name, desc, sig, ex));
@@ -39,28 +42,51 @@ public class SchedulerClassTransformer implements ClassTransformer {
     }
 
     private static class SchedulerMethodVisitor extends MethodVisitor {
-        private static final String PATCHER_INTERNAL_NAME = Type.getInternalName(FoliaPatcher.class);
+        private static final String PATCHER = "com/patch/foliaphantom/core/patcher/FoliaPatcher";
 
-        public SchedulerMethodVisitor(MethodVisitor mv) { super(Opcodes.ASM9, mv); }
+        public SchedulerMethodVisitor(MethodVisitor mv) {
+            super(Opcodes.ASM9, mv);
+        }
+
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            String methodKey = name + desc;
-
-            if (FoliaPatcher.REPLACEMENT_MAP.containsKey(methodKey)) {
-                if ("org/bukkit/scheduler/BukkitScheduler".equals(owner) && opcode == Opcodes.INVOKEINTERFACE) {
+            // Redirect BukkitScheduler interface calls
+            if ("org/bukkit/scheduler/BukkitScheduler".equals(owner) && opcode == Opcodes.INVOKEINTERFACE) {
+                if (isSchedulerMethod(name, desc)) {
                     String newDesc = "(Lorg/bukkit/scheduler/BukkitScheduler;" + desc.substring(1);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER_INTERNAL_NAME, name, newDesc, false);
-                    return;
-                }
-
-                if ("org/bukkit/scheduler/BukkitRunnable".equals(owner) && opcode == Opcodes.INVOKEVIRTUAL) {
-                    String newName = name + "_onRunnable";
-                    String newDesc = "(Lorg/bukkit/scheduler/BukkitRunnable;" + desc.substring(1);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER_INTERNAL_NAME, newName, newDesc, false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, name, newDesc, false);
                     return;
                 }
             }
+
+            // Redirect BukkitRunnable instance method calls
+            if (opcode == Opcodes.INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
+                String newName = name + "_onRunnable";
+                String newDesc = "(Ljava/lang/Runnable;" + desc.substring(1);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, newName, newDesc, false);
+                return;
+            }
+
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
+        }
+
+        private boolean isSchedulerMethod(String name, String desc) {
+            String mk = name + desc;
+            return mk.startsWith("runTask") || mk.startsWith("scheduleSync") ||
+                    mk.startsWith("scheduleAsync") || mk.startsWith("cancel");
+        }
+
+        private boolean isBukkitRunnableInstanceMethod(String name, String desc) {
+            String mk = name + desc;
+            return mk.equals("runTask(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
+                    mk.equals("runTaskLater(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;") ||
+                    mk.equals("runTaskTimer(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;") ||
+                    mk.equals("runTaskAsynchronously(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
+                    mk.equals(
+                            "runTaskLaterAsynchronously(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;")
+                    ||
+                    mk.equals(
+                            "runTaskTimerAsynchronously(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;");
         }
     }
 }

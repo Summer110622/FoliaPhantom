@@ -83,6 +83,30 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Entity Operations ---
+
+    /**
+     * Safely teleports an entity, respecting Folia's threading model.
+     * If called from a non-server thread, it uses Folia's async teleport and blocks for the result
+     * to maintain compatibility with original method signatures.
+     *
+     * @param entity The entity to teleport.
+     * @param location The destination location.
+     * @return {@code true} if the teleport was successful.
+     */
+    public static boolean safeTeleport(Entity entity, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return entity.teleport(location);
+        }
+
+        try {
+            return entity.teleportAsync(location).get(10, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(java.util.logging.Level.SEVERE, "Teleport operation for entity " + entity.getUniqueId() + " failed or timed out.", e);
+            return false;
+        }
+    }
+
     /**
      * Internal wrapper for Folia's ChunkGenerator.
      */

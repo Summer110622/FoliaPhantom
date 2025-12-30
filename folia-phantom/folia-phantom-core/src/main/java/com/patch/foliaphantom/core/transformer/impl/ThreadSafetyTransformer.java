@@ -63,6 +63,13 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                 }
             }
 
+            // Redirect Entity.teleport(Location) calls
+            if (opcode == Opcodes.INVOKEINTERFACE && "org/bukkit/entity/Entity".equals(owner) && "teleport".equals(name) && "(Lorg/bukkit/Location;)Z".equals(desc)) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "safeTeleport",
+                        "(Lorg/bukkit/entity/Entity;Lorg/bukkit/Location;)Z", false);
+                return;
+            }
+
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
     }

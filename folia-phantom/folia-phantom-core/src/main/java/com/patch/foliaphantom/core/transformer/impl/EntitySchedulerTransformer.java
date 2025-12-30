@@ -21,26 +21,30 @@ import java.util.logging.Logger;
  */
 public class EntitySchedulerTransformer implements ClassTransformer {
     private final Logger logger;
+    private final String relocatedPatcherPath;
 
-    public EntitySchedulerTransformer(Logger logger) {
+    public EntitySchedulerTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
+        this.relocatedPatcherPath = relocatedPatcherPath;
     }
 
     @Override
     public ClassVisitor createVisitor(ClassVisitor next) {
-        return new EntitySchedulerVisitor(next);
+        return new EntitySchedulerVisitor(next, relocatedPatcherPath);
     }
 
     private static class EntitySchedulerVisitor extends ClassVisitor {
-        public EntitySchedulerVisitor(ClassVisitor cv) {
+        private final String patcherPath;
+
+        public EntitySchedulerVisitor(ClassVisitor cv, String patcherPath) {
             super(Opcodes.ASM9, cv);
+            this.patcherPath = patcherPath;
         }
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
-            return new MethodVisitor(Opcodes.ASM9, super.visitMethod(access, name, desc, sig, ex)) {
-                // Future expansion: Add specific entity-related scheduler redirections here
-            };
+            // TODO: Implement actual transformations in a dedicated MethodVisitor
+            return super.visitMethod(access, name, desc, sig, ex);
         }
     }
 }

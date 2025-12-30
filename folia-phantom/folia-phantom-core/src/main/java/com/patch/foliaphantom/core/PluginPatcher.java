@@ -20,6 +20,8 @@ import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.commons.ClassRemapper;
+import org.objectweb.asm.commons.SimpleRemapper;
 
 import java.io.File;
 import java.io.IOException;
@@ -29,10 +31,13 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.jar.JarInputStream;
+import java.util.jar.JarOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
@@ -82,8 +87,11 @@ public class PluginPatcher {
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
+    /** Patched FoliaPatcher internal path */
+    private String relocatedPatcherPath;
+
     /** Ordered list of class transformers to apply */
-    private final List<ClassTransformer> transformers;
+    private List<ClassTransformer> transformers;
 
     /** Statistics: number of classes scanned */
     private final AtomicInteger classesScanned = new AtomicInteger(0);
@@ -111,15 +119,6 @@ public class PluginPatcher {
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
-        this.transformers = new ArrayList<>();
-
-        // Register transformers in order of priority
-        transformers.add(new ThreadSafetyTransformer(logger));
-        transformers.add(new WorldGenClassTransformer(logger));
-        transformers.add(new EntitySchedulerTransformer(logger));
-        transformers.add(new SchedulerClassTransformer(logger));
-
-        logger.fine("Initialized PluginPatcher with " + transformers.size() + " transformers");
     }
 
     /**
@@ -159,6 +158,25 @@ public class PluginPatcher {
         long startTime = System.currentTimeMillis();
 
         try {
+            // Determine the relocation path
+            String pluginName = getPluginNameFromJar(originalJar);
+            if (pluginName == null) {
+                throw new IOException("Could not find plugin name from plugin.yml");
+            }
+
+            // Sanitize plugin name for package relocation
+            String safePluginName = pluginName.toLowerCase().replaceAll("[^a-z0-9]", "");
+            this.relocatedPatcherPath = safePluginName + "/folia/runtime";
+
+            // Initialize transformers with the relocated path
+            this.transformers = new ArrayList<>();
+            transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
+            transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
+            transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
+            transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+
+            logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
+
             createPatchedJar(originalJar.toPath(), outputJar.toPath());
             long duration = System.currentTimeMillis() - startTime;
             progressListener.onComplete(duration, getStatistics(), null);
@@ -259,53 +277,45 @@ public class PluginPatcher {
     }
 
     /**
-     * Bundles the FoliaPatcher runtime classes into the output JAR.
-     * 
-     * <p>
-     * These classes are required at runtime by the patched plugin
-     * to handle Folia's scheduler API calls.
-     * </p>
-     * 
+     * Bundles and relocates the FoliaPatcher runtime classes into the output JAR using ASM.
+     *
+     * <p>These classes are required at runtime by the patched plugin to handle Folia's
+     * scheduler API calls. They are relocated to a unique package path to avoid conflicts.</p>
+     *
      * @param zos The output ZIP stream
      * @throws IOException If bundling fails
      */
     private void bundleFoliaPatcherClasses(ZipOutputStream zos) throws IOException {
-        Class<?> patcherClass = com.patch.foliaphantom.core.patcher.FoliaPatcher.class;
-        String classPath = patcherClass.getName().replace('.', '/');
+        String originalPatcherPath = "com/patch/foliaphantom/core/patcher";
+        SimpleRemapper remapper = new SimpleRemapper(originalPatcherPath, this.relocatedPatcherPath);
 
-        // Bundle main class and inner classes
         String[] classesToBundle = {
-                classPath + ".class",
-                classPath + "$FoliaBukkitTask.class",
-                classPath + "$FoliaChunkGenerator.class"
+            "FoliaPatcher.class",
+            "FoliaPatcher$FoliaBukkitTask.class",
+            "FoliaPatcher$FoliaChunkGenerator.class"
         };
 
-        int bundled = 0;
-        for (String clazz : classesToBundle) {
-            if (bundleClass(zos, clazz)) {
-                bundled++;
-            }
-        }
-        logger.fine("Bundled " + bundled + " runtime class(es)");
-    }
+        for (String className : classesToBundle) {
+            String originalClassPath = originalPatcherPath + "/" + className;
+            String relocatedClassPath = this.relocatedPatcherPath + "/" + className;
 
-    /**
-     * Bundles a single class file into the output JAR.
-     * 
-     * @param zos       The output ZIP stream
-     * @param classPath The internal class path
-     * @return true if bundled successfully, false otherwise
-     */
-    private boolean bundleClass(ZipOutputStream zos, String classPath) throws IOException {
-        try (InputStream is = getClass().getClassLoader().getResourceAsStream(classPath)) {
-            if (is == null) {
-                logger.warning("[FoliaPhantom] Runtime class not found: " + classPath);
-                return false;
+            try (InputStream is = getClass().getClassLoader().getResourceAsStream(originalClassPath)) {
+                if (is == null) {
+                    logger.warning("[FoliaPhantom] Runtime class not found: " + originalClassPath);
+                    continue;
+                }
+
+                ClassReader cr = new ClassReader(is);
+                ClassWriter cw = new ClassWriter(0);
+                ClassVisitor cv = new ClassRemapper(cw, remapper);
+                cr.accept(cv, ClassReader.EXPAND_FRAMES);
+
+                zos.putNextEntry(new ZipEntry(relocatedClassPath));
+                zos.write(cw.toByteArray());
+                zos.closeEntry();
+
+                logger.fine("Successfully bundled and relocated " + relocatedClassPath);
             }
-            zos.putNextEntry(new ZipEntry(classPath));
-            copyStream(is, zos);
-            zos.closeEntry();
-            return true;
         }
     }
 
@@ -342,7 +352,7 @@ public class PluginPatcher {
             ClassReader cr = new ClassReader(originalBytes);
 
             // Fast-fail scan: check if this class needs patching
-            ScanningClassVisitor scanner = new ScanningClassVisitor();
+            ScanningClassVisitor scanner = new ScanningClassVisitor(relocatedPatcherPath);
             cr.accept(scanner, ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
 
             if (!scanner.needsPatching()) {

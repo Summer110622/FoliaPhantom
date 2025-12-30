@@ -20,32 +20,38 @@ import java.util.logging.Logger;
  */
 public class SchedulerClassTransformer implements ClassTransformer {
     private final Logger logger;
+    private final String relocatedPatcherPath;
 
-    public SchedulerClassTransformer(Logger logger) {
+    public SchedulerClassTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
+        this.relocatedPatcherPath = relocatedPatcherPath;
     }
 
     @Override
     public ClassVisitor createVisitor(ClassVisitor next) {
-        return new SchedulerClassVisitor(next);
+        return new SchedulerClassVisitor(next, relocatedPatcherPath);
     }
 
     private static class SchedulerClassVisitor extends ClassVisitor {
-        public SchedulerClassVisitor(ClassVisitor cv) {
+        private final String patcherPath;
+
+        public SchedulerClassVisitor(ClassVisitor cv, String patcherPath) {
             super(Opcodes.ASM9, cv);
+            this.patcherPath = patcherPath;
         }
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
-            return new SchedulerMethodVisitor(super.visitMethod(access, name, desc, sig, ex));
+            return new SchedulerMethodVisitor(super.visitMethod(access, name, desc, sig, ex), patcherPath);
         }
     }
 
     private static class SchedulerMethodVisitor extends MethodVisitor {
-        private static final String PATCHER = "com/patch/foliaphantom/core/patcher/FoliaPatcher";
+        private final String patcherPath;
 
-        public SchedulerMethodVisitor(MethodVisitor mv) {
+        public SchedulerMethodVisitor(MethodVisitor mv, String patcherPath) {
             super(Opcodes.ASM9, mv);
+            this.patcherPath = patcherPath;
         }
 
         @Override
@@ -54,7 +60,7 @@ public class SchedulerClassTransformer implements ClassTransformer {
             if ("org/bukkit/scheduler/BukkitScheduler".equals(owner) && opcode == Opcodes.INVOKEINTERFACE) {
                 if (isSchedulerMethod(name, desc)) {
                     String newDesc = "(Lorg/bukkit/scheduler/BukkitScheduler;" + desc.substring(1);
-                    super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, name, newDesc, false);
+                    super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, name, newDesc, false);
                     return;
                 }
             }
@@ -63,7 +69,7 @@ public class SchedulerClassTransformer implements ClassTransformer {
             if (opcode == Opcodes.INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
                 String newName = name + "_onRunnable";
                 String newDesc = "(Ljava/lang/Runnable;" + desc.substring(1);
-                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, newName, newDesc, false);
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, newName, newDesc, false);
                 return;
             }
 

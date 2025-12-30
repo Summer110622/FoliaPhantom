@@ -21,9 +21,12 @@ import org.objectweb.asm.Opcodes;
  */
 public class ScanningClassVisitor extends ClassVisitor {
     private boolean needsPatching = false;
+    private final String relocatedPatcherPath;
+    private static final String ORIGINAL_PATCHER_PATH = "com/patch/foliaphantom/core/patcher/FoliaPatcher";
 
-    public ScanningClassVisitor() {
+    public ScanningClassVisitor(String relocatedPatcherPath) {
         super(Opcodes.ASM9);
+        this.relocatedPatcherPath = relocatedPatcherPath;
     }
 
     /**
@@ -49,7 +52,8 @@ public class ScanningClassVisitor extends ClassVisitor {
                 return;
 
             // Define targets that trigger the 'needsPatching' flag
-            if ("org/bukkit/scheduler/BukkitScheduler".equals(owner) ||
+            if (ORIGINAL_PATCHER_PATH.equals(owner) ||
+                    "org/bukkit/scheduler/BukkitScheduler".equals(owner) ||
                     "org/bukkit/scheduler/BukkitRunnable".equals(owner) ||
                     "org/bukkit/WorldCreator".equals(owner) ||
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) ||

@@ -9,6 +9,7 @@
  */
 package com.patch.foliaphantom.core;
 
+import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
@@ -78,6 +79,9 @@ public class PluginPatcher {
     /** Logger instance for this patcher */
     private final Logger logger;
 
+    /** Progress listener for real-time feedback */
+    private final PatchProgressListener progressListener;
+
     /** Ordered list of class transformers to apply */
     private final List<ClassTransformer> transformers;
 
@@ -90,29 +94,41 @@ public class PluginPatcher {
     /** Statistics: number of classes skipped (no changes needed) */
     private final AtomicInteger classesSkipped = new AtomicInteger(0);
 
+    /** A progress listener that does nothing */
+    private static final PatchProgressListener NULL_LISTENER = new PatchProgressListener() {
+        @Override public void onPatchStart(File originalJar, File outputJar) {}
+        @Override public void onClassTransform(String className, int classIndex, int totalClasses) {}
+        @Override public void onProgressUpdate(int percentage, String message) {}
+        @Override public void onComplete(long durationMillis, int[] statistics, Throwable error) {}
+    };
+
     /**
-     * Creates a new PluginPatcher instance with the specified logger.
-     * 
-     * <p>
-     * Registers all available transformers in the correct order.
-     * Transformer order is critical as some transformers may depend on
-     * previous modifications.
-     * </p>
-     * 
-     * @param logger Logger for outputting patching progress and diagnostics
+     * Creates a new PluginPatcher instance with the specified logger and progress listener.
+     *
+     * @param logger           Logger for diagnostics
+     * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
         this.logger = logger;
+        this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.transformers = new ArrayList<>();
 
         // Register transformers in order of priority
-        // Order is critical: ThreadSafety → WorldGen → Entity → Scheduler
         transformers.add(new ThreadSafetyTransformer(logger));
         transformers.add(new WorldGenClassTransformer(logger));
         transformers.add(new EntitySchedulerTransformer(logger));
         transformers.add(new SchedulerClassTransformer(logger));
 
         logger.fine("Initialized PluginPatcher with " + transformers.size() + " transformers");
+    }
+
+    /**
+     * Creates a new PluginPatcher instance with the specified logger.
+     *
+     * @param logger Logger for outputting patching progress and diagnostics
+     */
+    public PluginPatcher(Logger logger) {
+        this(logger, null);
     }
 
     /**
@@ -135,25 +151,22 @@ public class PluginPatcher {
      * @throws IOException If an I/O error occurs during patching
      */
     public void patchPlugin(File originalJar, File outputJar) throws IOException {
-        // Reset statistics
         classesScanned.set(0);
         classesTransformed.set(0);
         classesSkipped.set(0);
 
-        logger.info("[FoliaPhantom] ─────────────────────────────────────────");
-        logger.info("[FoliaPhantom] Patching: " + originalJar.getName());
-        logger.info("[FoliaPhantom] Output:   " + outputJar.getName());
-
+        progressListener.onPatchStart(originalJar, outputJar);
         long startTime = System.currentTimeMillis();
-        createPatchedJar(originalJar.toPath(), outputJar.toPath());
-        long duration = System.currentTimeMillis() - startTime;
 
-        logger.info("[FoliaPhantom] ─────────────────────────────────────────");
-        logger.info("[FoliaPhantom] Completed in " + duration + "ms");
-        logger.info("[FoliaPhantom]   Classes scanned:     " + classesScanned.get());
-        logger.info("[FoliaPhantom]   Classes transformed: " + classesTransformed.get());
-        logger.info("[FoliaPhantom]   Classes skipped:     " + classesSkipped.get());
-        logger.info("[FoliaPhantom] ─────────────────────────────────────────");
+        try {
+            createPatchedJar(originalJar.toPath(), outputJar.toPath());
+            long duration = System.currentTimeMillis() - startTime;
+            progressListener.onComplete(duration, getStatistics(), null);
+        } catch (IOException e) {
+            long duration = System.currentTimeMillis() - startTime;
+            progressListener.onComplete(duration, getStatistics(), e);
+            throw e;
+        }
     }
 
     /**
@@ -165,71 +178,67 @@ public class PluginPatcher {
      */
     private void createPatchedJar(Path source, Path destination) throws IOException {
         ForkJoinPool executor = ForkJoinPool.commonPool();
-
-        // Container for async class patching results
         List<ClassPatchFuture> classFutures = new ArrayList<>(256);
 
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(source));
-                ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(destination))) {
-
-            // Configure output compression
-            zos.setMethod(ZipOutputStream.DEFLATED);
-            zos.setLevel(COMPRESSION_LEVEL);
-
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                String name = entry.getName();
-                boolean isDirectory = entry.isDirectory();
-
-                // Skip JAR signature files (for signed JARs like MythicMobs)
-                if (isSignatureFile(name)) {
-                    logger.fine("[FoliaPhantom] Removing signature file: " + name);
-                    continue;
-                }
-
-                if (!isDirectory && name.endsWith(".class")) {
-                    // Queue class for parallel transformation
-                    byte[] classBytes = zis.readAllBytes();
-                    classesScanned.incrementAndGet();
-                    classFutures.add(new ClassPatchFuture(
-                            name,
-                            executor.submit(() -> patchClass(classBytes, name))));
-                } else if (!isDirectory && name.equals("plugin.yml")) {
-                    // Modify plugin.yml to add Folia support flag
-                    String originalYml = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                    String modifiedYml = addFoliaSupportedFlag(originalYml);
-                    writeEntry(zos, name, modifiedYml.getBytes(StandardCharsets.UTF_8));
-                    logger.fine("[FoliaPhantom] Modified plugin.yml with folia-supported: true");
-                } else {
-                    // Copy other resources directly
-                    zos.putNextEntry(new ZipEntry(name));
-                    if (!isDirectory) {
-                        copyStream(zis, zos);
-                    }
-                    zos.closeEntry();
+        progressListener.onProgressUpdate(0, "Scanning JAR entries...");
+        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(source))) {
+            zis.mark(Integer.MAX_VALUE);
+            int classCount = 0;
+            ZipEntry ze;
+            while ((ze = zis.getNextEntry()) != null) {
+                if (ze.getName().endsWith(".class")) {
+                    classCount++;
                 }
             }
+            zis.reset();
 
-            // Write transformed classes
-            for (ClassPatchFuture cpf : classFutures) {
-                try {
-                    ClassPatchResult result = cpf.future.get();
-                    writeEntry(zos, cpf.name, result.bytes);
+            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(destination))) {
+                zos.setMethod(ZipOutputStream.DEFLATED);
+                zos.setLevel(COMPRESSION_LEVEL);
 
-                    if (result.wasTransformed) {
-                        classesTransformed.incrementAndGet();
+                ZipEntry entry;
+                int processedCount = 0;
+                while ((entry = zis.getNextEntry()) != null) {
+                    String name = entry.getName();
+                    if (isSignatureFile(name)) continue;
+
+                    if (!entry.isDirectory() && name.endsWith(".class")) {
+                        byte[] classBytes = zis.readAllBytes();
+                        classesScanned.incrementAndGet();
+                        final int currentClassIndex = processedCount++;
+                        progressListener.onClassTransform(name, currentClassIndex, classCount);
+                        classFutures.add(new ClassPatchFuture(name,
+                                executor.submit(() -> patchClass(classBytes, name))));
+                    } else if (!entry.isDirectory() && name.equals("plugin.yml")) {
+                        String originalYml = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
+                        writeEntry(zos, name, addFoliaSupportedFlag(originalYml).getBytes(StandardCharsets.UTF_8));
                     } else {
-                        classesSkipped.incrementAndGet();
+                        zos.putNextEntry(new ZipEntry(name));
+                        if (!entry.isDirectory()) copyStream(zis, zos);
+                        zos.closeEntry();
                     }
-                } catch (Exception e) {
-                    throw new IOException("Failed to patch class: " + cpf.name, e);
                 }
-            }
 
-            // Bundle FoliaPatcher runtime classes
-            bundleFoliaPatcherClasses(zos);
+                progressListener.onProgressUpdate(50, "Writing transformed classes...");
+                for (int i = 0; i < classFutures.size(); i++) {
+                    ClassPatchFuture cpf = classFutures.get(i);
+                    try {
+                        ClassPatchResult result = cpf.future.get();
+                        writeEntry(zos, cpf.name, result.bytes);
+                        if (result.wasTransformed) classesTransformed.incrementAndGet();
+                        else classesSkipped.incrementAndGet();
+                        progressListener.onProgressUpdate(50 + (i * 40 / classFutures.size()),
+                                "Writing: " + cpf.name);
+                    } catch (Exception e) {
+                        throw new IOException("Failed to patch class: " + cpf.name, e);
+                    }
+                }
+
+                progressListener.onProgressUpdate(90, "Bundling runtime classes...");
+                bundleFoliaPatcherClasses(zos);
+                progressListener.onProgressUpdate(100, "Finalizing JAR...");
+            }
         }
-        // Note: ForkJoinPool.commonPool() should not be shut down
     }
 
     /**
@@ -277,8 +286,7 @@ public class PluginPatcher {
                 bundled++;
             }
         }
-
-        logger.info("[FoliaPhantom] Bundled " + bundled + " runtime class(es)");
+        logger.fine("Bundled " + bundled + " runtime class(es)");
     }
 
     /**

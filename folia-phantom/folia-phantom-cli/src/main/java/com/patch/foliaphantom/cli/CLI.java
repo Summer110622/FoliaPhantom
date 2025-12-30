@@ -1,6 +1,7 @@
 package com.patch.foliaphantom.cli;
 
 import com.patch.foliaphantom.core.PluginPatcher;
+import com.patch.foliaphantom.core.progress.PatchProgressListener;
 
 import java.io.File;
 import java.io.IOException;
@@ -31,7 +32,8 @@ public class CLI {
 
         LOGGER.info("Output directory set to: " + outputDir.getAbsolutePath());
 
-        PluginPatcher patcher = new PluginPatcher(LOGGER);
+        PatchProgressListener listener = new ConsolePatchProgressListener();
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);
@@ -116,16 +118,12 @@ public class CLI {
                 pluginName = inputJar.getName();
             }
 
-            LOGGER.info("----------------------------------------------------------------------");
-            LOGGER.info("Patching: " + pluginName);
-
             if (PluginPatcher.isFoliaSupported(inputJar)) {
                 LOGGER.warning("This plugin already appears to be Folia-supported. Patching anyway.");
             }
 
             File outputJar = new File(outputDir, "patched-" + inputJar.getName());
             patcher.patchPlugin(inputJar, outputJar);
-            LOGGER.info("Successfully patched " + pluginName + ". Patched file at: " + outputJar.getAbsolutePath());
             return true;
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "An error occurred while patching " + inputJar.getName() + ":", e);

@@ -15,16 +15,24 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
-import java.util.List;
 import java.util.Map;
-import java.util.concurrent.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.IntConsumer;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 /**
@@ -304,7 +312,7 @@ public final class FoliaPatcher {
         }
     }
 
-    // --- Thread-Safe Block Operations ---
+    // --- Thread-Safe World Operations ---
 
     public static void safeSetType(Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
@@ -319,6 +327,55 @@ public final class FoliaPatcher {
             block.setType(material, applyPhysics);
         } else {
             Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
+        }
+    }
+
+    /**
+     * Safely spawns an entity in the world at the given location.
+     * If not on the main thread, this will schedule the spawn and block until it completes.
+     */
+    public static <T extends Entity> T safeSpawnEntity(World world, Location location, Class<T> clazz) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawn(location, clazz);
+        } else {
+            CompletableFuture<T> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.spawn(location, clazz));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                // Block for a short time to prevent server hangs
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely sets the block data for a block.
+     */
+    public static void safeSetBlockData(Block block, BlockData data, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data, applyPhysics);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
+        }
+    }
+
+    /**
+     * Safely loads a chunk, generating it if specified.
+     */
+    public static void safeLoadChunk(World world, int x, int z, boolean generate) {
+        if (Bukkit.isPrimaryThread()) {
+            world.loadChunk(x, z, generate);
+        } else {
+            // execute() is better for this as it doesn't imply a delay
+            Bukkit.getRegionScheduler().execute(plugin, world, x, z, () -> world.loadChunk(x, z, generate));
         }
     }
 

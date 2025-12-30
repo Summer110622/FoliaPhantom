@@ -50,7 +50,7 @@ public class ThreadSafetyTransformer implements ClassTransformer {
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            // Redirect Block.setType calls
+            // Redirect Block.setType
             if ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) {
                 if ("(Lorg/bukkit/Material;)V".equals(desc)) {
                     super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "safeSetType",
@@ -62,6 +62,28 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     return;
                 }
             }
+
+            // Redirect Block.setBlockData
+            if ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData") && "(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "safeSetBlockData",
+                        "(Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V", false);
+                return;
+            }
+
+            // Redirect World.spawn
+            if ("org/bukkit/World".equals(owner) && name.equals("spawn") && "(Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;".equals(desc)) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "safeSpawnEntity",
+                        "(Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;", false);
+                return;
+            }
+
+            // Redirect World.loadChunk
+            if ("org/bukkit/World".equals(owner) && name.equals("loadChunk") && "(IIZ)V".equals(desc)) {
+                super.visitMethodInsn(Opcodes.INVOKESTATIC, PATCHER, "safeLoadChunk",
+                        "(Lorg/bukkit/World;IIZ)V", false);
+                return;
+            }
+
 
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }

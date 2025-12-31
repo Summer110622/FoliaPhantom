@@ -26,23 +26,25 @@ import org.objectweb.asm.commons.SimpleRemapper;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.OutputStream;
+import java.net.URI;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystem;
+import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.jar.JarInputStream;
-import java.util.jar.JarOutputStream;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.zip.ZipEntry;
-import java.util.zip.ZipInputStream;
-import java.util.zip.ZipOutputStream;
+import java.util.stream.Stream;
 
 /**
  * Main plugin patching utility for Folia Phantom.
@@ -188,104 +190,98 @@ public class PluginPatcher {
     }
 
     /**
-     * Creates the patched JAR file with parallel class transformation.
-     * 
-     * @param source      Path to source JAR
-     * @param destination Path to output JAR
-     * @throws IOException If an I/O error occurs
+     * Creates the patched JAR using an in-memory ZIP filesystem for high performance.
+     *
+     * @param source      Path to the source JAR.
+     * @param destination Path for the output JAR.
+     * @throws IOException If an I/O error occurs during file operations.
      */
     private void createPatchedJar(Path source, Path destination) throws IOException {
-        ForkJoinPool executor = ForkJoinPool.commonPool();
-        List<ClassPatchFuture> classFutures = new ArrayList<>(256);
+        // First, copy the original JAR to the destination. We will modify it in-place.
+        Files.copy(source, destination, StandardCopyOption.REPLACE_EXISTING);
 
-        progressListener.onProgressUpdate(0, "Scanning JAR entries...");
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(source))) {
-            zis.mark(Integer.MAX_VALUE);
-            int classCount = 0;
-            ZipEntry ze;
-            while ((ze = zis.getNextEntry()) != null) {
-                if (ze.getName().endsWith(".class")) {
-                    classCount++;
+        // Define ZIP filesystem properties. 'create: false' means we open an existing file.
+        Map<String, String> env = new HashMap<>();
+        env.put("create", "false");
+
+        URI uri = URI.create("jar:" + destination.toUri());
+
+        try (FileSystem zipfs = FileSystems.newFileSystem(uri, env)) {
+            ForkJoinPool executor = ForkJoinPool.commonPool();
+            List<Path> classFiles;
+            try (Stream<Path> stream = Files.walk(zipfs.getPath("/"))) {
+                classFiles = stream.filter(p -> p.toString().endsWith(".class")).toList();
+            }
+
+            progressListener.onProgressUpdate(0, "Transforming " + classFiles.size() + " classes...");
+
+            // Submit all class patching tasks for parallel execution.
+            Map<Path, Future<ClassPatchResult>> futures = new HashMap<>();
+            for (Path path : classFiles) {
+                byte[] originalBytes = Files.readAllBytes(path);
+                classesScanned.incrementAndGet();
+                futures.put(path, executor.submit(() -> patchClass(originalBytes, path.toString())));
+            }
+
+            // Process results and write back to the in-memory filesystem.
+            int processedCount = 0;
+            for (Map.Entry<Path, Future<ClassPatchResult>> entry : futures.entrySet()) {
+                try {
+                    ClassPatchResult result = entry.getValue().get();
+                    if (result.wasTransformed) {
+                        Files.write(entry.getKey(), result.bytes);
+                        classesTransformed.incrementAndGet();
+                    } else {
+                        classesSkipped.incrementAndGet();
+                    }
+                    progressListener.onProgressUpdate(
+                        (int) (50.0 * (++processedCount) / classFiles.size()),
+                        "Processed: " + entry.getKey()
+                    );
+                } catch (InterruptedException | ExecutionException e) {
+                    throw new IOException("Failed to patch class: " + entry.getKey(), e);
                 }
             }
-            zis.reset();
 
-            try (ZipOutputStream zos = new ZipOutputStream(Files.newOutputStream(destination))) {
-                zos.setMethod(ZipOutputStream.DEFLATED);
-                zos.setLevel(COMPRESSION_LEVEL);
+            progressListener.onProgressUpdate(50, "Updating JAR metadata...");
+            updatePluginYml(zipfs);
+            removeSignatureFiles(zipfs);
 
-                ZipEntry entry;
-                int processedCount = 0;
-                while ((entry = zis.getNextEntry()) != null) {
-                    String name = entry.getName();
-                    if (isSignatureFile(name)) continue;
+            progressListener.onProgressUpdate(90, "Bundling runtime classes...");
+            bundleFoliaPatcherClasses(zipfs);
 
-                    if (!entry.isDirectory() && name.endsWith(".class")) {
-                        byte[] classBytes = zis.readAllBytes();
-                        classesScanned.incrementAndGet();
-                        final int currentClassIndex = processedCount++;
-                        progressListener.onClassTransform(name, currentClassIndex, classCount);
-                        classFutures.add(new ClassPatchFuture(name,
-                                executor.submit(() -> patchClass(classBytes, name))));
-                    } else if (!entry.isDirectory() && name.equals("plugin.yml")) {
-                        String originalYml = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                        writeEntry(zos, name, addFoliaSupportedFlag(originalYml).getBytes(StandardCharsets.UTF_8));
-                    } else {
-                        zos.putNextEntry(new ZipEntry(name));
-                        if (!entry.isDirectory()) copyStream(zis, zos);
-                        zos.closeEntry();
-                    }
-                }
+            progressListener.onProgressUpdate(100, "Finalizing JAR...");
+        }
+    }
 
-                progressListener.onProgressUpdate(50, "Writing transformed classes...");
-                for (int i = 0; i < classFutures.size(); i++) {
-                    ClassPatchFuture cpf = classFutures.get(i);
+    private void updatePluginYml(FileSystem zipfs) throws IOException {
+        Path pluginYmlPath = zipfs.getPath("plugin.yml");
+        if (Files.exists(pluginYmlPath)) {
+            String originalYml = Files.readString(pluginYmlPath, StandardCharsets.UTF_8);
+            String modifiedYml = addFoliaSupportedFlag(originalYml);
+            Files.writeString(pluginYmlPath, modifiedYml, StandardCharsets.UTF_8);
+        }
+    }
+
+    private void removeSignatureFiles(FileSystem zipfs) throws IOException {
+        Path metaInfDir = zipfs.getPath("META-INF");
+        if (Files.isDirectory(metaInfDir)) {
+            try (Stream<Path> stream = Files.list(metaInfDir)) {
+                stream.filter(p -> {
+                    String fn = p.getFileName().toString();
+                    return fn.endsWith(".SF") || fn.endsWith(".DSA") || fn.endsWith(".RSA");
+                }).forEach(p -> {
                     try {
-                        ClassPatchResult result = cpf.future.get();
-                        writeEntry(zos, cpf.name, result.bytes);
-                        if (result.wasTransformed) classesTransformed.incrementAndGet();
-                        else classesSkipped.incrementAndGet();
-                        progressListener.onProgressUpdate(50 + (i * 40 / classFutures.size()),
-                                "Writing: " + cpf.name);
-                    } catch (Exception e) {
-                        throw new IOException("Failed to patch class: " + cpf.name, e);
+                        Files.delete(p);
+                    } catch (IOException e) {
+                        logger.log(Level.WARNING, "Failed to delete signature file: " + p, e);
                     }
-                }
-
-                progressListener.onProgressUpdate(90, "Bundling runtime classes...");
-                bundleFoliaPatcherClasses(zos);
-                progressListener.onProgressUpdate(100, "Finalizing JAR...");
+                });
             }
         }
     }
 
-    /**
-     * Checks if a file is a JAR signature file.
-     */
-    private boolean isSignatureFile(String name) {
-        return name.startsWith("META-INF/") &&
-                (name.endsWith(".SF") || name.endsWith(".DSA") || name.endsWith(".RSA"));
-    }
-
-    /**
-     * Writes an entry to the ZIP output stream.
-     */
-    private void writeEntry(ZipOutputStream zos, String name, byte[] data) throws IOException {
-        zos.putNextEntry(new ZipEntry(name));
-        zos.write(data);
-        zos.closeEntry();
-    }
-
-    /**
-     * Bundles and relocates the FoliaPatcher runtime classes into the output JAR using ASM.
-     *
-     * <p>These classes are required at runtime by the patched plugin to handle Folia's
-     * scheduler API calls. They are relocated to a unique package path to avoid conflicts.</p>
-     *
-     * @param zos The output ZIP stream
-     * @throws IOException If bundling fails
-     */
-    private void bundleFoliaPatcherClasses(ZipOutputStream zos) throws IOException {
+    private void bundleFoliaPatcherClasses(FileSystem zipfs) throws IOException {
         String originalPatcherPath = "com/patch/foliaphantom/core/patcher";
         SimpleRemapper remapper = new SimpleRemapper(originalPatcherPath, this.relocatedPatcherPath);
 
@@ -295,9 +291,12 @@ public class PluginPatcher {
             "FoliaPatcher$FoliaChunkGenerator.class"
         };
 
+        Path targetDir = zipfs.getPath(this.relocatedPatcherPath);
+        Files.createDirectories(targetDir);
+
         for (String className : classesToBundle) {
             String originalClassPath = originalPatcherPath + "/" + className;
-            String relocatedClassPath = this.relocatedPatcherPath + "/" + className;
+            Path targetPath = targetDir.resolve(className);
 
             try (InputStream is = getClass().getClassLoader().getResourceAsStream(originalClassPath)) {
                 if (is == null) {
@@ -310,27 +309,9 @@ public class PluginPatcher {
                 ClassVisitor cv = new ClassRemapper(cw, remapper);
                 cr.accept(cv, ClassReader.EXPAND_FRAMES);
 
-                zos.putNextEntry(new ZipEntry(relocatedClassPath));
-                zos.write(cw.toByteArray());
-                zos.closeEntry();
-
-                logger.fine("Successfully bundled and relocated " + relocatedClassPath);
+                Files.write(targetPath, cw.toByteArray());
+                logger.fine("Successfully bundled and relocated " + targetPath);
             }
-        }
-    }
-
-    /**
-     * Copies data from an input stream to an output stream.
-     * 
-     * @param in  Source stream
-     * @param out Destination stream
-     * @throws IOException If an I/O error occurs
-     */
-    private void copyStream(InputStream in, OutputStream out) throws IOException {
-        byte[] buffer = new byte[BUFFER_SIZE];
-        int len;
-        while ((len = in.read(buffer)) > 0) {
-            out.write(buffer, 0, len);
         }
     }
 
@@ -401,45 +382,40 @@ public class PluginPatcher {
     // =========================================================================
 
     /**
-     * Extracts the plugin name from a JAR file's plugin.yml.
-     * 
+     * Extracts the plugin name from a JAR file's plugin.yml using NIO FileSystems.
+     *
      * @param jarFile The plugin JAR file
      * @return The plugin name, or null if not found
      * @throws IOException If an I/O error occurs
      */
     public static String getPluginNameFromJar(File jarFile) throws IOException {
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(jarFile.toPath()))) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                if (entry.getName().equals("plugin.yml")) {
-                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                    for (String line : content.lines().toList()) {
-                        if (line.trim().startsWith("name:")) {
-                            return line.substring(line.indexOf(":") + 1).trim();
-                        }
-                    }
-                }
+        try (FileSystem zipfs = FileSystems.newFileSystem(jarFile.toPath(), Collections.emptyMap())) {
+            Path pluginYmlPath = zipfs.getPath("plugin.yml");
+            if (Files.exists(pluginYmlPath)) {
+                return Files.readAllLines(pluginYmlPath).stream()
+                        .map(String::trim)
+                        .filter(line -> line.startsWith("name:"))
+                        .findFirst()
+                        .map(line -> line.substring(line.indexOf(":") + 1).trim())
+                        .orElse(null);
             }
         }
         return null;
     }
 
     /**
-     * Checks if a plugin JAR already has folia-supported: true.
-     * 
+     * Checks if a plugin JAR already has folia-supported: true using NIO FileSystems.
+     *
      * @param jarFile The plugin JAR file
      * @return true if the plugin already supports Folia
      * @throws IOException If an I/O error occurs
      */
     public static boolean isFoliaSupported(File jarFile) throws IOException {
-        try (ZipInputStream zis = new ZipInputStream(Files.newInputStream(jarFile.toPath()))) {
-            ZipEntry entry;
-            while ((entry = zis.getNextEntry()) != null) {
-                if (entry.getName().equals("plugin.yml")) {
-                    String content = new String(zis.readAllBytes(), StandardCharsets.UTF_8);
-                    return content.lines()
-                            .anyMatch(line -> line.trim().equalsIgnoreCase("folia-supported: true"));
-                }
+        try (FileSystem zipfs = FileSystems.newFileSystem(jarFile.toPath(), Collections.emptyMap())) {
+            Path pluginYmlPath = zipfs.getPath("plugin.yml");
+            if (Files.exists(pluginYmlPath)) {
+                return Files.readAllLines(pluginYmlPath).stream()
+                        .anyMatch(line -> line.trim().equalsIgnoreCase("folia-supported: true"));
             }
         }
         return false;

@@ -1,6 +1,5 @@
 package com.patch.foliaphantom.plugin;
 
-import com.patch.foliaphantom.core.patcher.FoliaPatcher;
 import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
 
@@ -14,9 +13,6 @@ public class FoliaPhantomPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // Set the static plugin reference for FoliaPatcher
-        FoliaPatcher.plugin = this;
-
         // Save default configuration
         saveDefaultConfig();
 

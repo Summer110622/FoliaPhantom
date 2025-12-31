@@ -17,6 +17,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.Event;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -54,11 +55,9 @@ public final class FoliaPatcher {
     private static final AtomicInteger taskIdCounter = new AtomicInteger(1000000);
     private static final Map<Integer, ScheduledTask> runningTasks = new ConcurrentHashMap<>();
 
-    /**
-     * The plugin instance used for scheduling.
-     * This is typically the patched plugin itself.
-     */
-    public static Plugin plugin;
+    // Cached fallback location to avoid repeated lookups.
+    private static volatile Location fallbackLocation;
+    private static final Object locationLock = new Object();
 
     private FoliaPatcher() {
     }
@@ -145,8 +144,24 @@ public final class FoliaPatcher {
     // --- Helper Methods ---
 
     private static Location getFallbackLocation() {
-        World mainWorld = Bukkit.getWorlds().get(0);
-        return mainWorld != null ? mainWorld.getSpawnLocation() : null;
+        Location loc = fallbackLocation;
+        if (loc == null) {
+            synchronized (locationLock) {
+                loc = fallbackLocation;
+                if (loc == null) {
+                    try {
+                        World mainWorld = Bukkit.getWorlds().get(0);
+                        if (mainWorld != null) {
+                            loc = mainWorld.getSpawnLocation();
+                            fallbackLocation = loc;
+                        }
+                    } catch (Exception e) {
+                        LOGGER.log(Level.WARNING, "[FoliaPhantom] Could not determine a fallback location for scheduling. Tasks will run on the global region.", e);
+                    }
+                }
+            }
+        }
+        return loc;
     }
 
     private static void cancelTaskById(int taskId) {
@@ -314,7 +329,7 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
-    public static void safeSetType(Block block, org.bukkit.Material material) {
+    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
         } else {
@@ -322,7 +337,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetTypeWithPhysics(Block block, org.bukkit.Material material, boolean applyPhysics) {
+    public static void safeSetTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material, applyPhysics);
         } else {
@@ -334,7 +349,7 @@ public final class FoliaPatcher {
      * Safely spawns an entity in the world at the given location.
      * If not on the main thread, this will schedule the spawn and block until it completes.
      */
-    public static <T extends Entity> T safeSpawnEntity(World world, Location location, Class<T> clazz) {
+    public static <T extends Entity> T safeSpawnEntity(Plugin plugin, World world, Location location, Class<T> clazz) {
         if (Bukkit.isPrimaryThread()) {
             return world.spawn(location, clazz);
         } else {
@@ -359,7 +374,7 @@ public final class FoliaPatcher {
     /**
      * Safely sets the block data for a block.
      */
-    public static void safeSetBlockData(Block block, BlockData data, boolean applyPhysics) {
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setBlockData(data, applyPhysics);
         } else {
@@ -370,7 +385,7 @@ public final class FoliaPatcher {
     /**
      * Safely loads a chunk, generating it if specified.
      */
-    public static void safeLoadChunk(World world, int x, int z, boolean generate) {
+    public static void safeLoadChunk(Plugin plugin, World world, int x, int z, boolean generate) {
         if (Bukkit.isPrimaryThread()) {
             world.loadChunk(x, z, generate);
         } else {
@@ -419,5 +434,21 @@ public final class FoliaPatcher {
                 task.cancel();
         });
         runningTasks.clear();
+    }
+
+    // --- Thread-Safe Event Calling ---
+
+    /**
+     * Safely calls an event, ensuring it is executed on the main server thread.
+     *
+     * @param plugin The plugin calling the event.
+     * @param event  The event to call.
+     */
+    public static void safeCallEvent(Plugin plugin, org.bukkit.event.Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.getPluginManager().callEvent(event));
+        }
     }
 }

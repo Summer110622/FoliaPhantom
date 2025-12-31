@@ -59,34 +59,39 @@ public class ThreadSafetyTransformer implements ClassTransformer {
             // Redirect Block.setType
             if ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) {
                 if ("(Lorg/bukkit/Material;)V".equals(desc)) {
+                    super.visitVarInsn(Opcodes.ALOAD, 0); // Load 'this' (plugin)
                     super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, "safeSetType",
-                            "(Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V", false);
+                            "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V", false);
                     return;
                 } else if ("(Lorg/bukkit/Material;Z)V".equals(desc)) {
+                    super.visitVarInsn(Opcodes.ALOAD, 0); // Load 'this' (plugin)
                     super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, "safeSetTypeWithPhysics",
-                            "(Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V", false);
+                            "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V", false);
                     return;
                 }
             }
 
             // Redirect Block.setBlockData
             if ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData") && "(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
+                super.visitVarInsn(Opcodes.ALOAD, 0); // Load 'this' (plugin)
                 super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, "safeSetBlockData",
-                        "(Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V", false);
+                        "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V", false);
                 return;
             }
 
             // Redirect World.spawn
             if ("org/bukkit/World".equals(owner) && name.equals("spawn") && "(Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;".equals(desc)) {
+                super.visitVarInsn(Opcodes.ALOAD, 0); // Load 'this' (plugin)
                 super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, "safeSpawnEntity",
-                        "(Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;", false);
+                        "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;", false);
                 return;
             }
 
             // Redirect World.loadChunk
             if ("org/bukkit/World".equals(owner) && name.equals("loadChunk") && "(IIZ)V".equals(desc)) {
+                super.visitVarInsn(Opcodes.ALOAD, 0); // Load 'this' (plugin)
                 super.visitMethodInsn(Opcodes.INVOKESTATIC, patcherPath, "safeLoadChunk",
-                        "(Lorg/bukkit/World;IIZ)V", false);
+                        "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;IIZ)V", false);
                 return;
             }
 

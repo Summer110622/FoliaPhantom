@@ -14,9 +14,6 @@ public class FoliaPhantomPlugin extends JavaPlugin {
 
     @Override
     public void onEnable() {
-        // Set the static plugin reference for FoliaPatcher
-        FoliaPatcher.plugin = this;
-
         // Save default configuration
         saveDefaultConfig();
 

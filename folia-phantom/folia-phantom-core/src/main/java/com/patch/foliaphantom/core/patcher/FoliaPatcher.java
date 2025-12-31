@@ -54,12 +54,6 @@ public final class FoliaPatcher {
     private static final AtomicInteger taskIdCounter = new AtomicInteger(1000000);
     private static final Map<Integer, ScheduledTask> runningTasks = new ConcurrentHashMap<>();
 
-    /**
-     * The plugin instance used for scheduling.
-     * This is typically the patched plugin itself.
-     */
-    public static Plugin plugin;
-
     private FoliaPatcher() {
     }
 
@@ -314,7 +308,7 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
-    public static void safeSetType(Block block, org.bukkit.Material material) {
+    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
         } else {
@@ -322,7 +316,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetTypeWithPhysics(Block block, org.bukkit.Material material, boolean applyPhysics) {
+    public static void safeSetTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material, applyPhysics);
         } else {
@@ -334,7 +328,7 @@ public final class FoliaPatcher {
      * Safely spawns an entity in the world at the given location.
      * If not on the main thread, this will schedule the spawn and block until it completes.
      */
-    public static <T extends Entity> T safeSpawnEntity(World world, Location location, Class<T> clazz) {
+    public static <T extends Entity> T safeSpawnEntity(Plugin plugin, World world, Location location, Class<T> clazz) {
         if (Bukkit.isPrimaryThread()) {
             return world.spawn(location, clazz);
         } else {
@@ -359,7 +353,7 @@ public final class FoliaPatcher {
     /**
      * Safely sets the block data for a block.
      */
-    public static void safeSetBlockData(Block block, BlockData data, boolean applyPhysics) {
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setBlockData(data, applyPhysics);
         } else {
@@ -370,7 +364,7 @@ public final class FoliaPatcher {
     /**
      * Safely loads a chunk, generating it if specified.
      */
-    public static void safeLoadChunk(World world, int x, int z, boolean generate) {
+    public static void safeLoadChunk(Plugin plugin, World world, int x, int z, boolean generate) {
         if (Bukkit.isPrimaryThread()) {
             world.loadChunk(x, z, generate);
         } else {

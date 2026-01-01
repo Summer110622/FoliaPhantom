@@ -391,6 +391,144 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Scoreboard Operations ---
+
+    public static org.bukkit.scoreboard.Objective safeRegisterNewObjective(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String name, String criteria) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.registerNewObjective(name, criteria);
+        } else {
+            CompletableFuture<org.bukkit.scoreboard.Objective> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(scoreboard.registerNewObjective(name, criteria));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new objective '" + name + "'", e);
+                return null;
+            }
+        }
+    }
+
+    public static org.bukkit.scoreboard.Team safeRegisterNewTeam(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String name) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.registerNewTeam(name);
+        } else {
+            CompletableFuture<org.bukkit.scoreboard.Team> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(scoreboard.registerNewTeam(name));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new team '" + name + "'", e);
+                return null;
+            }
+        }
+    }
+
+    public static void safeResetScores(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String entry) {
+        if (Bukkit.isPrimaryThread()) {
+            scoreboard.resetScores(entry);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> scoreboard.resetScores(entry));
+        }
+    }
+
+    public static void safeClearSlot(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, org.bukkit.scoreboard.DisplaySlot slot) {
+        if (Bukkit.isPrimaryThread()) {
+            scoreboard.clearSlot(slot);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> scoreboard.clearSlot(slot));
+        }
+    }
+
+    // --- Thread-Safe Team Operations ---
+
+    public static void safeAddEntry(Plugin plugin, org.bukkit.scoreboard.Team team, String entry) {
+        if (Bukkit.isPrimaryThread()) {
+            team.addEntry(entry);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.addEntry(entry));
+        }
+    }
+
+    public static boolean safeRemoveEntry(Plugin plugin, org.bukkit.scoreboard.Team team, String entry) {
+        if (Bukkit.isPrimaryThread()) {
+            return team.removeEntry(entry);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(team.removeEntry(entry)));
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to remove team entry '" + entry + "'", e);
+                return false;
+            }
+        }
+    }
+
+    public static void safeSetPrefix(Plugin plugin, org.bukkit.scoreboard.Team team, String prefix) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setPrefix(prefix);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setPrefix(prefix));
+        }
+    }
+
+    public static void safeSetSuffix(Plugin plugin, org.bukkit.scoreboard.Team team, String suffix) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setSuffix(suffix);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setSuffix(suffix));
+        }
+    }
+
+    public static void safeUnregisterTeam(Plugin plugin, org.bukkit.scoreboard.Team team) {
+        if (Bukkit.isPrimaryThread()) {
+            team.unregister();
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.unregister());
+        }
+    }
+
+    // --- Thread-Safe Objective Operations ---
+
+    public static void safeSetDisplayName(Plugin plugin, org.bukkit.scoreboard.Objective objective, String displayName) {
+        if (Bukkit.isPrimaryThread()) {
+            objective.setDisplayName(displayName);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> objective.setDisplayName(displayName));
+        }
+    }
+
+    public static void safeUnregisterObjective(Plugin plugin, org.bukkit.scoreboard.Objective objective) {
+        if (Bukkit.isPrimaryThread()) {
+            objective.unregister();
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> objective.unregister());
+        }
+    }
+
+    // --- Thread-Safe Score Operations ---
+
+    public static void safeSetScore(Plugin plugin, org.bukkit.scoreboard.Score score, int scoreValue) {
+        if (Bukkit.isPrimaryThread()) {
+            score.setScore(scoreValue);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> score.setScore(scoreValue));
+        }
+    }
+
+
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

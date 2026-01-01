@@ -233,10 +233,36 @@ public final class FoliaPatcher {
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, false, foliaTask);
     }
 
+    // --- NEW Scheduler Redirections (without scheduler instance) ---
+
+    public static BukkitTask runTask(Plugin plugin, Runnable runnable) {
+        return runTask(null, plugin, runnable);
+    }
+
+    public static BukkitTask runTaskLater(Plugin plugin, Runnable runnable, long delay) {
+        return runTaskLater(null, plugin, runnable, delay);
+    }
+
+    public static BukkitTask runTaskTimer(Plugin plugin, Runnable runnable, long delay, long period) {
+        return runTaskTimer(null, plugin, runnable, delay, period);
+    }
+
+    public static BukkitTask runTaskAsynchronously(Plugin plugin, Runnable runnable) {
+        return runTaskAsynchronously(null, plugin, runnable);
+    }
+
+    public static BukkitTask runTaskLaterAsynchronously(Plugin plugin, Runnable runnable, long delay) {
+        return runTaskLaterAsynchronously(null, plugin, runnable, delay);
+    }
+
+    public static BukkitTask runTaskTimerAsynchronously(Plugin plugin, Runnable runnable, long delay, long period) {
+        return runTaskTimerAsynchronously(null, plugin, runnable, delay, period);
+    }
+
     // --- BukkitRunnable Instance Method Wrappers ---
 
     public static BukkitTask runTask_onRunnable(Runnable runnable, Plugin plugin) {
-        return runTask(null, plugin, runnable);
+        return runTask(plugin, runnable);
     }
 
     public static BukkitTask runTaskLater_onRunnable(Runnable runnable, Plugin plugin, long delay) {

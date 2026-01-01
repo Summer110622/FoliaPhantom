@@ -373,6 +373,24 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely teleports a player to a new location.
+     * If not on the main thread, this will use async teleport and block for the result.
+     */
+    public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Player player, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.teleport(location);
+        } else {
+            try {
+                // We use teleportAsync and wait for it to complete.
+                return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+                return false;
+            }
+        }
+    }
+
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

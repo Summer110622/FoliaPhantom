@@ -2,10 +2,13 @@ package com.patch.foliaphantom.cli;
 
 import com.patch.foliaphantom.core.PluginPatcher;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
+import com.patch.foliaphantom.core.transformer.TransformerType;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.EnumSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,7 +22,10 @@ public class CLI {
         setupLogger();
         printBanner();
 
-        File inputFile = getInputFile(args);
+        Set<TransformerType> enabledTransformers = EnumSet.allOf(TransformerType.class);
+        String inputPath = parseArguments(args, enabledTransformers);
+
+        File inputFile = getInputFile(inputPath);
         if (inputFile == null) {
             return;
         }
@@ -33,7 +39,7 @@ public class CLI {
         LOGGER.info("Output directory set to: " + outputDir.getAbsolutePath());
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, enabledTransformers);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);
@@ -65,12 +71,34 @@ public class CLI {
         System.out.println("======================================================================");
     }
 
-    private static File getInputFile(String[] args) {
+    private static String parseArguments(String[] args, Set<TransformerType> enabledTransformers) {
+        String inputPath = null;
+        for (String arg : args) {
+            if (arg.startsWith("--disable-")) {
+                String transformerName = arg.substring("--disable-".length()).toUpperCase().replace('-', '_');
+                try {
+                    TransformerType toDisable = TransformerType.valueOf(transformerName);
+                    if (enabledTransformers.remove(toDisable)) {
+                        LOGGER.info("Disabled transformer: " + toDisable);
+                    }
+                } catch (IllegalArgumentException e) {
+                    LOGGER.warning("Unknown transformer to disable: " + transformerName);
+                }
+            } else if (inputPath == null) {
+                inputPath = arg;
+            } else {
+                LOGGER.warning("Multiple input paths provided. Using the first one: " + inputPath);
+            }
+        }
+        return inputPath;
+    }
+
+    private static File getInputFile(String path) {
         File inputFile;
-        if (args.length == 0) {
+        if (path == null || path.isBlank()) {
             try (Scanner scanner = new Scanner(System.in)) {
                 System.out.print(">> Enter the path to a JAR file or a directory of JARs: ");
-                String path = scanner.nextLine();
+                path = scanner.nextLine();
                 if (path.isBlank()) {
                     LOGGER.severe("Error: No path provided.");
                     return null;
@@ -78,7 +106,7 @@ public class CLI {
                 inputFile = new File(path);
             }
         } else {
-            inputFile = new File(args[0]);
+            inputFile = new File(path);
         }
 
         if (!inputFile.exists()) {

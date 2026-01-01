@@ -19,7 +19,7 @@ import java.util.logging.Logger;
  * This class uses advanced bytecode manipulation with {@link AdviceAdapter} to
  * redirect scheduler calls to the {@code FoliaPatcher} runtime. It correctly
  * handles both static and virtual calls, ensuring the owning plugin's context
- * is always passed, thus avoiding the critical static reference bug.
+ * is always passed.
  * </p>
  */
 public class SchedulerClassTransformer implements ClassTransformer {
@@ -40,9 +40,6 @@ public class SchedulerClassTransformer implements ClassTransformer {
 
     private static class SchedulerClassVisitor extends ClassVisitor {
         private final String patcherPath;
-        private String className;
-        private String pluginFieldName;
-        private String pluginFieldDesc;
 
         public SchedulerClassVisitor(ClassVisitor cv, String patcherPath) {
             super(Opcodes.ASM9, cv);
@@ -50,64 +47,52 @@ public class SchedulerClassTransformer implements ClassTransformer {
         }
 
         @Override
-        public void visit(int version, int access, String name, String sig, String superName, String[] interfaces) {
-            this.className = name;
-            super.visit(version, access, name, sig, superName, interfaces);
-        }
-
-        @Override
-        public FieldVisitor visitField(int access, String name, String desc, String sig, Object val) {
-            if (pluginFieldName == null && (desc.equals("Lorg/bukkit/plugin/Plugin;") || desc.equals("Lorg/bukkit/plugin/java/JavaPlugin;"))) {
-                this.pluginFieldName = name;
-                this.pluginFieldDesc = desc;
-            }
-            return super.visitField(access, name, desc, sig, val);
-        }
-
-        @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            return new SchedulerMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName,
-                    pluginFieldDesc);
+            return new SchedulerMethodVisitor(mv, access, name, desc, patcherPath);
         }
     }
 
     private static class SchedulerMethodVisitor extends AdviceAdapter {
         private final String patcherPath;
-        private final String pluginFieldOwner;
-        private final String pluginFieldName;
-        private final String pluginFieldDesc;
 
-        protected SchedulerMethodVisitor(MethodVisitor mv, int access, String name, String desc,
-                String patcherPath, String owner, String pfn, String pfd) {
+        protected SchedulerMethodVisitor(MethodVisitor mv, int access, String name, String desc, String patcherPath) {
             super(Opcodes.ASM9, mv, access, name, desc);
             this.patcherPath = patcherPath;
-            this.pluginFieldOwner = owner;
-            this.pluginFieldName = pfn;
-            this.pluginFieldDesc = pfd;
         }
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
+            // Redirect: scheduler.runTask(plugin, ...) -> FoliaPatcher.runTask(plugin, ...)
             if (BUKKIT_SCHEDULER_OWNER.equals(owner) && opcode == INVOKEINTERFACE && isSchedulerMethod(name, desc)) {
-                // Stack: [scheduler, plugin, runnable, ...]
-                // We need to insert the scheduler instance before the plugin instance for the static call.
-                // The new signature is (scheduler, plugin, ...). The original is (plugin, ...).
-                String newDesc = "(Lorg/bukkit/scheduler/BukkitScheduler;" + desc.substring(1);
-                super.visitMethodInsn(INVOKESTATIC, patcherPath, name, newDesc, false);
+                // Original stack: [scheduler, plugin, arg1, arg2...]
+                // We need to call a static method, so we must pop the scheduler instance.
+                // To do this robustly, we store args into locals, pop, then load args back.
+                Type[] argTypes = Type.getArgumentTypes(desc);
+                int[] locals = new int[argTypes.length];
+                for (int i = argTypes.length - 1; i >= 0; i--) {
+                    locals[i] = newLocal(argTypes[i]);
+                    storeLocal(locals[i]);
+                }
+
+                // Stack is now just [scheduler]. Pop it.
+                pop();
+
+                // Load args back onto the stack.
+                for (int i = 0; i < argTypes.length; i++) {
+                    loadLocal(locals[i]);
+                }
+
+                // Call the static FoliaPatcher method. The descriptor is the same as the interface method.
+                super.visitMethodInsn(INVOKESTATIC, patcherPath, name, desc, false);
                 return;
             }
 
+            // Redirect: runnable.runTask(plugin) -> FoliaPatcher.runTask_onRunnable(runnable, plugin)
             if (opcode == INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
-                if (pluginFieldName == null) {
-                    // Cannot patch without a plugin field reference.
-                    super.visitMethodInsn(opcode, owner, name, desc, isInterface);
-                    return;
-                }
-
-                // Stack before call: [runnable, plugin, arg1, arg2...]
-                // We need to transform this to a static call:
-                // FoliaPatcher.method(runnable, plugin, arg1, arg2...)
+                // The owner of the call is the BukkitRunnable instance.
+                // Stack before: [runnable, plugin, ...]
+                // The static method needs the runnable as the first argument, which is already in place.
                 String newName = name + "_onRunnable";
                 String newDesc = "(Ljava/lang/Runnable;" + desc.substring(1);
                 super.visitMethodInsn(INVOKESTATIC, patcherPath, newName, newDesc, false);
@@ -118,12 +103,13 @@ public class SchedulerClassTransformer implements ClassTransformer {
         }
 
         private boolean isSchedulerMethod(String name, String desc) {
-            return (name.startsWith("runTask") || name.startsWith("scheduleSync") || name.startsWith("scheduleAsync")
-                    || name.startsWith("cancel"))
-                    && desc.contains("Lorg/bukkit/plugin/Plugin;");
+            boolean isCancel = name.startsWith("cancelTask"); // cancelTask(id) or cancelTasks(plugin)
+            boolean isScheduler = name.startsWith("runTask") || name.startsWith("scheduleSync") || name.startsWith("scheduleAsync");
+            return isCancel || isScheduler;
         }
 
         private boolean isBukkitRunnableInstanceMethod(String name, String desc) {
+            // Heuristic: any virtual call to a method named runTask* that takes a Plugin as its first arg.
             return name.startsWith("runTask") && desc.startsWith("(Lorg/bukkit/plugin/Plugin;");
         }
     }

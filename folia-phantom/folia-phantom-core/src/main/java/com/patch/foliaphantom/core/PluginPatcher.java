@@ -16,6 +16,7 @@ import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
+import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -172,6 +173,7 @@ public class PluginPatcher {
 
             // Initialize transformers with the relocated path
             this.transformers = new ArrayList<>();
+            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
             transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
             transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));

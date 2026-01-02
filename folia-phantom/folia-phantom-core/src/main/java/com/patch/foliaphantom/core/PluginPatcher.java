@@ -12,6 +12,7 @@ package com.patch.foliaphantom.core;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
+import com.patch.foliaphantom.core.transformer.TransformerType;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
@@ -38,9 +39,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
@@ -98,6 +101,9 @@ public class PluginPatcher {
     /** Ordered list of class transformers to apply */
     private List<ClassTransformer> transformers;
 
+    /** The set of transformers that are enabled for this patching session */
+    private final Set<TransformerType> enabledTransformers;
+
     /** Statistics: number of classes scanned */
     private final AtomicInteger classesScanned = new AtomicInteger(0);
 
@@ -116,23 +122,39 @@ public class PluginPatcher {
     };
 
     /**
+     * Creates a new PluginPatcher instance with full configuration.
+     *
+     * @param logger              Logger for diagnostics.
+     * @param progressListener    Listener for real-time progress updates. Can be null.
+     * @param enabledTransformers A set of {@link TransformerType} to enable. If null, all are enabled.
+     */
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, Set<TransformerType> enabledTransformers) {
+        this.logger = logger;
+        this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
+        this.enabledTransformers = (enabledTransformers == null || enabledTransformers.isEmpty())
+                ? EnumSet.allOf(TransformerType.class)
+                : enabledTransformers;
+    }
+
+    /**
      * Creates a new PluginPatcher instance with the specified logger and progress listener.
+     * All transformers are enabled by default.
      *
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this.logger = logger;
-        this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
+        this(logger, progressListener, null);
     }
 
     /**
      * Creates a new PluginPatcher instance with the specified logger.
+     * All transformers are enabled by default.
      *
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null);
+        this(logger, null, null);
     }
 
     /**
@@ -173,15 +195,31 @@ public class PluginPatcher {
             String safePluginName = pluginName.toLowerCase().replaceAll("[^a-z0-9]", "");
             this.relocatedPatcherPath = safePluginName + "/folia/runtime";
 
-            // Initialize transformers with the relocated path
+            // Initialize transformers based on the enabled set
             this.transformers = new ArrayList<>();
-            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
-            transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
-            transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+            logger.info("Enabled transformers: " + this.enabledTransformers);
+
+            if (enabledTransformers.contains(TransformerType.EVENT_HANDLER)) {
+                transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.TELEPORT)) {
+                transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.THREAD_SAFETY)) {
+                transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.WORLD_GEN)) {
+                transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.ENTITY_SCHEDULER)) {
+                transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.SCOREBOARD)) {
+                transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
+            }
+            if (enabledTransformers.contains(TransformerType.SCHEDULER_CLASS)) {
+                transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+            }
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 

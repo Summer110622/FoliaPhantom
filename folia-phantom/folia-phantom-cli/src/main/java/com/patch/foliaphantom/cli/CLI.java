@@ -2,10 +2,16 @@ package com.patch.foliaphantom.cli;
 
 import com.patch.foliaphantom.core.PluginPatcher;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
+import com.patch.foliaphantom.core.transformer.TransformerType;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.EnumSet;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,8 +25,40 @@ public class CLI {
         setupLogger();
         printBanner();
 
-        File inputFile = getInputFile(args);
-        if (inputFile == null) {
+        List<String> fileArgs = new ArrayList<>();
+        Set<TransformerType> disabledTransformers = new HashSet<>();
+
+        for (String arg : args) {
+            if (arg.startsWith("--disable=")) {
+                String[] disabledNames = arg.substring("--disable=".length()).split(",");
+                for (String name : disabledNames) {
+                    try {
+                        disabledTransformers.add(TransformerType.valueOf(name.trim().toUpperCase()));
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warning("Unknown transformer type to disable: " + name);
+                    }
+                }
+            } else {
+                fileArgs.add(arg);
+            }
+        }
+
+        File inputFile;
+        if (fileArgs.isEmpty()) {
+            LOGGER.info("No input file provided via arguments. Prompting user.");
+            inputFile = promptForInputFile();
+            if (inputFile == null) {
+                return;
+            }
+        } else {
+            if (fileArgs.size() > 1) {
+                LOGGER.warning("Multiple input files specified. Using the first one: " + fileArgs.get(0));
+            }
+            inputFile = new File(fileArgs.get(0));
+        }
+
+        if (!inputFile.exists()) {
+            LOGGER.severe("Error: The specified file or directory does not exist: " + inputFile.getAbsolutePath());
             return;
         }
 
@@ -32,8 +70,13 @@ public class CLI {
 
         LOGGER.info("Output directory set to: " + outputDir.getAbsolutePath());
 
+        Set<TransformerType> enabledTransformers = EnumSet.allOf(TransformerType.class);
+        enabledTransformers.removeAll(disabledTransformers);
+
+        LOGGER.info("Enabled transformers: " + enabledTransformers);
+
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, enabledTransformers);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);
@@ -65,27 +108,16 @@ public class CLI {
         System.out.println("======================================================================");
     }
 
-    private static File getInputFile(String[] args) {
-        File inputFile;
-        if (args.length == 0) {
-            try (Scanner scanner = new Scanner(System.in)) {
-                System.out.print(">> Enter the path to a JAR file or a directory of JARs: ");
-                String path = scanner.nextLine();
-                if (path.isBlank()) {
-                    LOGGER.severe("Error: No path provided.");
-                    return null;
-                }
-                inputFile = new File(path);
+    private static File promptForInputFile() {
+        try (Scanner scanner = new Scanner(System.in)) {
+            System.out.print(">> Enter the path to a JAR file or a directory of JARs: ");
+            String path = scanner.nextLine();
+            if (path.isBlank()) {
+                LOGGER.severe("Error: No path provided.");
+                return null;
             }
-        } else {
-            inputFile = new File(args[0]);
+            return new File(path);
         }
-
-        if (!inputFile.exists()) {
-            LOGGER.severe("Error: The specified file or directory does not exist: " + inputFile.getAbsolutePath());
-            return null;
-        }
-        return inputFile;
     }
 
     private static void patchDirectory(PluginPatcher patcher, File inputDir, File outputDir) {

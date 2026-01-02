@@ -554,6 +554,82 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Inventory Operations ---
+
+    /**
+     * Safely sets an item in an inventory slot.
+     * Schedules the operation on the appropriate region scheduler if not on the main thread.
+     */
+    public static void safeSetItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, int slot, org.bukkit.inventory.ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.setItem(slot, item);
+        } else {
+            org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+            Location loc = (holder instanceof Entity) ? ((Entity) holder).getLocation() : inventory.getLocation();
+            if (loc != null) {
+                Bukkit.getRegionScheduler().run(plugin, loc, ignored -> inventory.setItem(slot, item));
+            } else {
+                Bukkit.getGlobalRegionScheduler().run(plugin, ignored -> inventory.setItem(slot, item));
+            }
+        }
+    }
+
+    /**
+     * Safely adds items to an inventory.
+     * Schedules the operation and blocks for the result if not on the main thread.
+     */
+    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> safeAddItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
+        if (Bukkit.isPrimaryThread()) {
+            return inventory.addItem(items);
+        } else {
+            CompletableFuture<java.util.HashMap<Integer, org.bukkit.inventory.ItemStack>> future = new CompletableFuture<>();
+            java.util.function.Consumer<ScheduledTask> task = ignored -> {
+                try {
+                    future.complete(inventory.addItem(items));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            };
+
+            org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+            Location loc = (holder instanceof Entity) ? ((Entity) holder).getLocation() : inventory.getLocation();
+            if (loc != null) {
+                Bukkit.getRegionScheduler().run(plugin, loc, task);
+            } else {
+                Bukkit.getGlobalRegionScheduler().run(plugin, task);
+            }
+
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to add item to inventory", e);
+                java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remainingItems = new java.util.HashMap<>();
+                for (int i = 0; i < items.length; i++) {
+                    remainingItems.put(i, items[i]);
+                }
+                return remainingItems;
+            }
+        }
+    }
+
+    /**
+     * Safely clears an inventory.
+     * Schedules the operation on the appropriate region scheduler if not on the main thread.
+     */
+    public static void safeClear(Plugin plugin, org.bukkit.inventory.Inventory inventory) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.clear();
+        } else {
+            org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+            Location loc = (holder instanceof Entity) ? ((Entity) holder).getLocation() : inventory.getLocation();
+            if (loc != null) {
+                Bukkit.getRegionScheduler().run(plugin, loc, ignored -> inventory.clear());
+            } else {
+                Bukkit.getGlobalRegionScheduler().run(plugin, ignored -> inventory.clear());
+            }
+        }
+    }
+
 
     // --- Legacy / Int-returning Method Mappings ---
 

@@ -554,6 +554,141 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Inventory Operations ---
+
+    private static void executeOnInventoryHolder(Plugin plugin, org.bukkit.inventory.Inventory inventory, Runnable action) {
+        org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+        if (holder instanceof Entity) {
+            Bukkit.getRegionScheduler().run(plugin, ((Entity) holder).getLocation(), task -> action.run());
+        } else if (holder instanceof org.bukkit.block.BlockState) {
+            Bukkit.getRegionScheduler().run(plugin, ((org.bukkit.block.BlockState) holder).getLocation(), task -> action.run());
+        } else {
+            // Fallback for inventories without a location (e.g., EnderChests, custom UIs)
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> action.run());
+        }
+    }
+
+    private static <T> T executeOnInventoryHolderBlocking(Plugin plugin, org.bukkit.inventory.Inventory inventory, java.util.function.Supplier<T> action, T defaultValue) {
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Runnable task = () -> {
+            try {
+                future.complete(action.get());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        };
+
+        org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+        if (holder instanceof Entity) {
+            Bukkit.getRegionScheduler().run(plugin, ((Entity) holder).getLocation(), t -> task.run());
+        } else if (holder instanceof org.bukkit.block.BlockState) {
+            Bukkit.getRegionScheduler().run(plugin, ((org.bukkit.block.BlockState) holder).getLocation(), t -> task.run());
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, t -> task.run());
+        }
+
+        try {
+            // Increased timeout for potentially slow inventory operations under load
+            return future.get(250, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out waiting for inventory operation for plugin " + plugin.getName(), e);
+            return defaultValue;
+        }
+    }
+
+    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> addItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
+        if (Bukkit.isPrimaryThread()) {
+            return inventory.addItem(items);
+        }
+        final org.bukkit.inventory.ItemStack[] itemsCopy = new org.bukkit.inventory.ItemStack[items.length];
+        for (int i = 0; i < items.length; i++) {
+            if (items[i] != null) {
+                itemsCopy[i] = items[i].clone();
+            }
+        }
+        return executeOnInventoryHolderBlocking(plugin, inventory, () -> inventory.addItem(itemsCopy), new java.util.HashMap<>());
+    }
+
+    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> removeItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
+        if (Bukkit.isPrimaryThread()) {
+            return inventory.removeItem(items);
+        }
+        final org.bukkit.inventory.ItemStack[] itemsCopy = new org.bukkit.inventory.ItemStack[items.length];
+        for (int i = 0; i < items.length; i++) {
+            if (items[i] != null) {
+                itemsCopy[i] = items[i].clone();
+            }
+        }
+        return executeOnInventoryHolderBlocking(plugin, inventory, () -> inventory.removeItem(itemsCopy), new java.util.HashMap<>());
+    }
+
+    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> removeItemAnySlot(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
+        if (Bukkit.isPrimaryThread()) {
+            return inventory.removeItemAnySlot(items);
+        }
+        final org.bukkit.inventory.ItemStack[] itemsCopy = new org.bukkit.inventory.ItemStack[items.length];
+        for (int i = 0; i < items.length; i++) {
+            if (items[i] != null) {
+                itemsCopy[i] = items[i].clone();
+            }
+        }
+        return executeOnInventoryHolderBlocking(plugin, inventory, () -> inventory.removeItemAnySlot(itemsCopy), new java.util.HashMap<>());
+    }
+
+    public static void setItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, int index, org.bukkit.inventory.ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.setItem(index, item);
+        } else {
+            executeOnInventoryHolder(plugin, inventory, () -> inventory.setItem(index, item));
+        }
+    }
+
+    public static void clear(Plugin plugin, org.bukkit.inventory.Inventory inventory) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.clear();
+        } else {
+            executeOnInventoryHolder(plugin, inventory, inventory::clear);
+        }
+    }
+
+    public static void clear(Plugin plugin, org.bukkit.inventory.Inventory inventory, int index) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.clear(index);
+        } else {
+            executeOnInventoryHolder(plugin, inventory, () -> inventory.clear(index));
+        }
+    }
+
+    public static void remove(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            inventory.remove(item);
+        } else {
+            executeOnInventoryHolder(plugin, inventory, () -> inventory.remove(item));
+        }
+    }
+
+    public static org.bukkit.inventory.InventoryView openInventory(Plugin plugin, org.bukkit.entity.HumanEntity humanEntity, org.bukkit.inventory.Inventory inventory) {
+        if (Bukkit.isPrimaryThread()) {
+            return humanEntity.openInventory(inventory);
+        }
+        return executeOnInventoryHolderBlocking(plugin, inventory, () -> humanEntity.openInventory(inventory), null);
+    }
+
+    public static void closeInventory(Plugin plugin, org.bukkit.entity.HumanEntity humanEntity) {
+        if (Bukkit.isPrimaryThread()) {
+            humanEntity.closeInventory();
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, humanEntity.getLocation(), task -> humanEntity.closeInventory());
+        }
+    }
+
+    public static void setItemOnCursor(Plugin plugin, org.bukkit.entity.HumanEntity humanEntity, org.bukkit.inventory.ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            humanEntity.setItemOnCursor(item);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, humanEntity.getLocation(), task -> humanEntity.setItemOnCursor(item));
+        }
+    }
 
     // --- Legacy / Int-returning Method Mappings ---
 

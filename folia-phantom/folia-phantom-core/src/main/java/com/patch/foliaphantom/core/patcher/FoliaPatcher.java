@@ -518,6 +518,46 @@ public final class FoliaPatcher {
         }
     }
 
+    public static void safeSetTeamDisplayName(Plugin plugin, org.bukkit.scoreboard.Team team, String displayName) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setDisplayName(displayName);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setDisplayName(displayName));
+        }
+    }
+
+    public static void safeSetColor(Plugin plugin, org.bukkit.scoreboard.Team team, org.bukkit.ChatColor color) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setColor(color);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setColor(color));
+        }
+    }
+
+    public static void safeSetAllowFriendlyFire(Plugin plugin, org.bukkit.scoreboard.Team team, boolean enabled) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setAllowFriendlyFire(enabled);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setAllowFriendlyFire(enabled));
+        }
+    }
+
+    public static void safeSetCanSeeFriendlyInvisibles(Plugin plugin, org.bukkit.scoreboard.Team team, boolean enabled) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setCanSeeFriendlyInvisibles(enabled);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setCanSeeFriendlyInvisibles(enabled));
+        }
+    }
+
+    public static void safeSetOption(Plugin plugin, org.bukkit.scoreboard.Team team, org.bukkit.scoreboard.Team.Option option, org.bukkit.scoreboard.Team.OptionStatus status) {
+        if (Bukkit.isPrimaryThread()) {
+            team.setOption(option, status);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.setOption(option, status));
+        }
+    }
+
     public static void safeUnregisterTeam(Plugin plugin, org.bukkit.scoreboard.Team team) {
         if (Bukkit.isPrimaryThread()) {
             team.unregister();
@@ -533,6 +573,22 @@ public final class FoliaPatcher {
             objective.setDisplayName(displayName);
         } else {
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> objective.setDisplayName(displayName));
+        }
+    }
+
+    public static void safeSetDisplaySlot(Plugin plugin, org.bukkit.scoreboard.Objective objective, org.bukkit.scoreboard.DisplaySlot slot) {
+        if (Bukkit.isPrimaryThread()) {
+            objective.setDisplaySlot(slot);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> objective.setDisplaySlot(slot));
+        }
+    }
+
+    public static void safeSetRenderType(Plugin plugin, org.bukkit.scoreboard.Objective objective, org.bukkit.scoreboard.RenderType renderType) {
+        if (Bukkit.isPrimaryThread()) {
+            objective.setRenderType(renderType);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> objective.setRenderType(renderType));
         }
     }
 

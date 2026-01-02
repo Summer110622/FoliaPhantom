@@ -49,12 +49,19 @@ public class ScoreboardTransformer implements ClassTransformer {
         teamMap.put("removeEntry(Ljava/lang/String;)Z", new MethodMapping("safeRemoveEntry", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)Z"));
         teamMap.put("setPrefix(Ljava/lang/String;)V", new MethodMapping("safeSetPrefix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("setSuffix(Ljava/lang/String;)V", new MethodMapping("safeSetSuffix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
+        teamMap.put("setDisplayName(Ljava/lang/String;)V", new MethodMapping("safeSetTeamDisplayName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
+        teamMap.put("setColor(Lorg/bukkit/ChatColor;)V", new MethodMapping("safeSetColor", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Lorg/bukkit/ChatColor;)V"));
+        teamMap.put("setAllowFriendlyFire(Z)V", new MethodMapping("safeSetAllowFriendlyFire", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Z)V"));
+        teamMap.put("setCanSeeFriendlyInvisibles(Z)V", new MethodMapping("safeSetCanSeeFriendlyInvisibles", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Z)V"));
+        teamMap.put("setOption(Lorg/bukkit/scoreboard/Team$Option;Lorg/bukkit/scoreboard/Team$OptionStatus;)V", new MethodMapping("safeSetOption", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Lorg/bukkit/scoreboard/Team$Option;Lorg/bukkit/scoreboard/Team$OptionStatus;)V"));
         teamMap.put("unregister()V", new MethodMapping("safeUnregisterTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)V"));
         methodMappings.put(TEAM_OWNER, teamMap);
 
         // Objective Mappings
         Map<String, MethodMapping> objectiveMap = new HashMap<>();
         objectiveMap.put("setDisplayName(Ljava/lang/String;)V", new MethodMapping("safeSetDisplayName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;Ljava/lang/String;)V"));
+        objectiveMap.put("setDisplaySlot(Lorg/bukkit/scoreboard/DisplaySlot;)V", new MethodMapping("safeSetDisplaySlot", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;Lorg/bukkit/scoreboard/DisplaySlot;)V"));
+        objectiveMap.put("setRenderType(Lorg/bukkit/scoreboard/RenderType;)V", new MethodMapping("safeSetRenderType", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;Lorg/bukkit/scoreboard/RenderType;)V"));
         objectiveMap.put("unregister()V", new MethodMapping("safeUnregisterObjective", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;)V"));
         methodMappings.put(OBJECTIVE_OWNER, objectiveMap);
 

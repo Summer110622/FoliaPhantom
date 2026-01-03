@@ -630,6 +630,59 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Event Calling ---
+
+    /**
+     * Safely calls a Bukkit event, dispatching it to the correct thread based on its context.
+     * This ensures that events fired from async threads are handled on the appropriate
+     * Folia/Paper scheduler (player, region, or global).
+     *
+     * @param plugin The plugin instance firing the event.
+     * @param event The event to be called.
+     */
+    public static void safeCallEvent(Plugin plugin, org.bukkit.event.Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+
+        // Prioritize the most specific scheduler available
+        if (event instanceof org.bukkit.event.player.PlayerEvent) {
+            org.bukkit.entity.Player player = ((org.bukkit.event.player.PlayerEvent) event).getPlayer();
+            if (player != null && player.isOnline()) {
+                player.getScheduler().run(plugin, task -> Bukkit.getPluginManager().callEvent(event), null);
+                return;
+            }
+        }
+
+        if (event instanceof org.bukkit.event.entity.EntityEvent) {
+            org.bukkit.entity.Entity entity = ((org.bukkit.event.entity.EntityEvent) event).getEntity();
+            if (entity != null) {
+                Bukkit.getRegionScheduler().run(plugin, entity.getLocation(), task -> Bukkit.getPluginManager().callEvent(event));
+                return;
+            }
+        }
+
+        if (event instanceof org.bukkit.event.block.BlockEvent) {
+            Block block = ((org.bukkit.event.block.BlockEvent) event).getBlock();
+            if (block != null) {
+                Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> Bukkit.getPluginManager().callEvent(event));
+                return;
+            }
+        }
+
+        if (event instanceof org.bukkit.event.world.WorldEvent) {
+            World world = ((org.bukkit.event.world.WorldEvent) event).getWorld();
+            if (world != null) {
+                Bukkit.getRegionScheduler().run(plugin, world.getSpawnLocation(), task -> Bukkit.getPluginManager().callEvent(event));
+                return;
+            }
+        }
+
+        // Fallback for all other event types
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.getPluginManager().callEvent(event));
+    }
+
 
     // --- Legacy / Int-returning Method Mappings ---
 

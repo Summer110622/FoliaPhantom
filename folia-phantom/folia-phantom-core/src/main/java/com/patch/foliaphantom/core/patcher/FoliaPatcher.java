@@ -672,4 +672,63 @@ public final class FoliaPatcher {
         });
         runningTasks.clear();
     }
+
+    // --- Thread-Safe Player Operations ---
+
+    /**
+     * Safely sends a message to a player.
+     */
+    public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String message) {
+        if (Bukkit.isPrimaryThread()) {
+            player.sendMessage(message);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, player.getLocation(), task -> player.sendMessage(message));
+        }
+    }
+
+    /**
+     * Safely sends multiple messages to a player.
+     */
+    public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
+        if (Bukkit.isPrimaryThread()) {
+            player.sendMessage(messages);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, player.getLocation(), task -> player.sendMessage(messages));
+        }
+    }
+
+    /**
+     * Safely kicks a player from the server.
+     */
+    public static void safeKickPlayer(Plugin plugin, org.bukkit.entity.Player player, String message) {
+        if (Bukkit.isPrimaryThread()) {
+            player.kickPlayer(message);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, player.getLocation(), task -> player.kickPlayer(message));
+        }
+    }
+
+    /**
+     * Safely makes a player perform a command.
+     */
+    public static boolean safePerformCommand(Plugin plugin, org.bukkit.entity.Player player, String command) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.performCommand(command);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, player.getLocation(), task -> {
+                try {
+                    future.complete(player.performCommand(command));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(1, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to perform command for player " + player.getName(), e);
+                return false;
+            }
+        }
+    }
 }

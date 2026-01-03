@@ -20,6 +20,7 @@ import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
+import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -184,6 +185,7 @@ public class PluginPatcher {
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
             transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+            transformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 

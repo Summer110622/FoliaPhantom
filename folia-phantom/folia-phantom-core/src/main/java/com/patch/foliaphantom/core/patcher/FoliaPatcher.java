@@ -17,6 +17,11 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.player.PlayerEvent;
+import org.bukkit.event.world.WorldEvent;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -671,5 +676,36 @@ public final class FoliaPatcher {
                 task.cancel();
         });
         runningTasks.clear();
+    }
+
+    // --- Thread-Safe Custom Event Handling ---
+
+    /**
+     * Safely calls a custom event by dispatching it to the appropriate thread.
+     * This method inspects the event type to determine the correct execution context
+     * (e.g., player, entity, or global region) required by Folia.
+     *
+     * @param plugin The plugin firing the event.
+     * @param event  The event to be called.
+     */
+    public static void safeCallEvent(Plugin plugin, Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+
+        Runnable call = () -> Bukkit.getPluginManager().callEvent(event);
+
+        if (event instanceof PlayerEvent) {
+            Bukkit.getRegionScheduler().run(plugin, ((PlayerEvent) event).getPlayer().getLocation(), t -> call.run());
+        } else if (event instanceof EntityEvent) {
+            Bukkit.getRegionScheduler().run(plugin, ((EntityEvent) event).getEntity().getLocation(), t -> call.run());
+        } else if (event instanceof BlockEvent) {
+            Bukkit.getRegionScheduler().run(plugin, ((BlockEvent) event).getBlock().getLocation(), t -> call.run());
+        } else if (event instanceof WorldEvent) {
+            Bukkit.getRegionScheduler().run(plugin, ((WorldEvent) event).getWorld().getSpawnLocation(), t -> call.run());
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, t -> call.run());
+        }
     }
 }

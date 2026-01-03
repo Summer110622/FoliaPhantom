@@ -12,6 +12,7 @@ package com.patch.foliaphantom.core;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
+import com.patch.foliaphantom.core.transformer.impl.BlockStateTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
@@ -184,6 +185,7 @@ public class PluginPatcher {
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
             transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+            transformers.add(new BlockStateTransformer(logger, relocatedPatcherPath));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 

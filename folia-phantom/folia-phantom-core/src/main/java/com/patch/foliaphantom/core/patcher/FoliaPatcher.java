@@ -630,6 +630,83 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe BlockState Operations ---
+
+    /**
+     * Safely updates a BlockState.
+     * Schedules the operation on the appropriate region scheduler if not on the main thread and blocks for the result.
+     */
+    public static boolean safeBlockStateUpdate(Plugin plugin, org.bukkit.block.BlockState blockState) {
+        if (Bukkit.isPrimaryThread()) {
+            return blockState.update();
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, blockState.getLocation(), task -> {
+                try {
+                    future.complete(blockState.update());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to update block state at " + blockState.getLocation(), e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely updates a BlockState.
+     * Schedules the operation on the appropriate region scheduler if not on the main thread and blocks for the result.
+     */
+    public static boolean safeBlockStateUpdate(Plugin plugin, org.bukkit.block.BlockState blockState, boolean force) {
+        if (Bukkit.isPrimaryThread()) {
+            return blockState.update(force);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, blockState.getLocation(), task -> {
+                try {
+                    future.complete(blockState.update(force));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to update block state at " + blockState.getLocation(), e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely updates a BlockState.
+     * Schedules the operation on the appropriate region scheduler if not on the main thread and blocks for the result.
+     */
+    public static boolean safeBlockStateUpdate(Plugin plugin, org.bukkit.block.BlockState blockState, boolean force, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            return blockState.update(force, applyPhysics);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, blockState.getLocation(), task -> {
+                try {
+                    future.complete(blockState.update(force, applyPhysics));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to update block state at " + blockState.getLocation(), e);
+                return false;
+            }
+        }
+    }
+
 
     // --- Legacy / Int-returning Method Mappings ---
 

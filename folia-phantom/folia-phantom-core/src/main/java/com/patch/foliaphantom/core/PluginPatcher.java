@@ -18,6 +18,7 @@ import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.InventoryTransformer;
 import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
+import com.patch.foliaphantom.core.transformer.impl.CustomEventTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
 
@@ -176,6 +177,7 @@ public class PluginPatcher {
 
             // Initialize transformers with the relocated path
             this.transformers = new ArrayList<>();
+            transformers.add(new CustomEventTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
             transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));

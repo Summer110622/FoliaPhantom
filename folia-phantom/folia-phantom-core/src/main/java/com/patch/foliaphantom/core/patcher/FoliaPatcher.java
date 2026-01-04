@@ -17,6 +17,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.inventory.InventoryType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -555,6 +556,106 @@ public final class FoliaPatcher {
     }
 
     // --- Thread-Safe Inventory Operations ---
+
+    /**
+     * Safely creates an inventory.
+     * Schedules the operation on the global region scheduler and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.inventory.Inventory safeCreateInventory(Plugin plugin, org.bukkit.inventory.InventoryHolder owner, int size) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.createInventory(owner, size);
+        } else {
+            CompletableFuture<org.bukkit.inventory.Inventory> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(Bukkit.createInventory(owner, size));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create inventory", e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely creates an inventory with a title.
+     * Schedules the operation on the global region scheduler and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.inventory.Inventory safeCreateInventory(Plugin plugin, org.bukkit.inventory.InventoryHolder owner, int size, String title) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.createInventory(owner, size, title);
+        } else {
+            CompletableFuture<org.bukkit.inventory.Inventory> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(Bukkit.createInventory(owner, size, title));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create inventory with title '" + title + "'", e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely creates an inventory with a specific type.
+     * Schedules the operation on the global region scheduler and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.inventory.Inventory safeCreateInventory(Plugin plugin, org.bukkit.inventory.InventoryHolder owner, InventoryType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.createInventory(owner, type);
+        } else {
+            CompletableFuture<org.bukkit.inventory.Inventory> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(Bukkit.createInventory(owner, type));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create inventory of type " + type, e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely creates an inventory with a specific type and title.
+     * Schedules the operation on the global region scheduler and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.inventory.Inventory safeCreateInventory(Plugin plugin, org.bukkit.inventory.InventoryHolder owner, InventoryType type, String title) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.createInventory(owner, type, title);
+        } else {
+            CompletableFuture<org.bukkit.inventory.Inventory> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(Bukkit.createInventory(owner, type, title));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create inventory of type " + type + " with title '" + title + "'", e);
+                return null;
+            }
+        }
+    }
 
     /**
      * Safely sets an item in an inventory slot.

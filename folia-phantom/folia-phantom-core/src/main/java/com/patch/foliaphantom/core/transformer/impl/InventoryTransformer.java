@@ -96,6 +96,11 @@ public class InventoryTransformer implements ClassTransformer {
                     return;
                 }
             }
+            if (opcode == INVOKESTATIC && owner.equals("org/bukkit/Bukkit")) {
+                if (tryHandleBukkitStatic(name, desc)) {
+                    return;
+                }
+            }
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
 
@@ -103,24 +108,41 @@ public class InventoryTransformer implements ClassTransformer {
             switch (name) {
                 case "setItem":
                     if ("(ILorg/bukkit/inventory/ItemStack;)V".equals(desc)) {
-                        return transform(2, "safeSetItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;ILorg/bukkit/inventory/ItemStack;)V");
+                        return transformInstanceCall(2, "safeSetItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;ILorg/bukkit/inventory/ItemStack;)V");
                     }
                     break;
                 case "addItem":
                     if ("([Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;".equals(desc)) {
-                        return transform(1, "safeAddItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;[Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;");
+                        return transformInstanceCall(1, "safeAddItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;[Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;");
                     }
                     break;
                 case "clear":
                     if ("()V".equals(desc)) {
-                        return transform(0, "safeClear", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;)V");
+                        return transformInstanceCall(0, "safeClear", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;)V");
                     }
                     break;
             }
             return false;
         }
 
-        private boolean transform(int argCount, String newName, String newDesc) {
+        private boolean tryHandleBukkitStatic(String name, String desc) {
+            if (!name.equals("createInventory")) {
+                return false;
+            }
+            switch (desc) {
+                case "(Lorg/bukkit/inventory/InventoryHolder;I)Lorg/bukkit/inventory/Inventory;":
+                    return transformStaticCall(2, "safeCreateInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/InventoryHolder;I)Lorg/bukkit/inventory/Inventory;");
+                case "(Lorg/bukkit/inventory/InventoryHolder;ILjava/lang/String;)Lorg/bukkit/inventory/Inventory;":
+                    return transformStaticCall(3, "safeCreateInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/InventoryHolder;ILjava/lang/String;)Lorg/bukkit/inventory/Inventory;");
+                case "(Lorg/bukkit/inventory/InventoryHolder;Lorg/bukkit/event/inventory/InventoryType;)Lorg/bukkit/inventory/Inventory;":
+                    return transformStaticCall(2, "safeCreateInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/InventoryHolder;Lorg/bukkit/event/inventory/InventoryType;)Lorg/bukkit/inventory/Inventory;");
+                case "(Lorg/bukkit/inventory/InventoryHolder;Lorg/bukkit/event/inventory/InventoryType;Ljava/lang/String;)Lorg/bukkit/inventory/Inventory;":
+                    return transformStaticCall(3, "safeCreateInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/InventoryHolder;Lorg/bukkit/event/inventory/InventoryType;Ljava/lang/String;)Lorg/bukkit/inventory/Inventory;");
+            }
+            return false;
+        }
+
+        private boolean transformInstanceCall(int argCount, String newName, String newDesc) {
             Type[] argTypes = Type.getArgumentTypes(newDesc);
 
             // Store all original arguments (including the instance) into local variables.
@@ -136,6 +158,29 @@ public class InventoryTransformer implements ClassTransformer {
 
             // Push the original arguments back onto the stack from locals.
             for (int i = 0; i <= argCount; i++) {
+                loadLocal(locals[i]);
+            }
+
+            super.visitMethodInsn(INVOKESTATIC, patcherOwner, newName, newDesc, false);
+            return true;
+        }
+
+        private boolean transformStaticCall(int argCount, String newName, String newDesc) {
+            Type[] originalArgTypes = Type.getArgumentTypes(methodDesc);
+
+            // Store all original arguments into local variables.
+            int[] locals = new int[argCount];
+            for (int i = argCount - 1; i >= 0; i--) {
+                locals[i] = newLocal(originalArgTypes[i]);
+                storeLocal(locals[i]);
+            }
+
+            // Stack is now empty.
+            // Push the plugin instance onto the stack.
+            injectPluginInstance();
+
+            // Push the original arguments back onto the stack from locals.
+            for (int i = 0; i < argCount; i++) {
                 loadLocal(locals[i]);
             }
 

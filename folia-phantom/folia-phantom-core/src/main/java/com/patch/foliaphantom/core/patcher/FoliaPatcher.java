@@ -5,7 +5,7 @@
  * call at runtime. It bridges standard Bukkit/Paper API calls to Folia-specific
  * region-based or async schedulers.
  * 
- * Copyright (c) 2025 Marv
+ * Copyright (c) 2026 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core.patcher;
@@ -14,7 +14,9 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.World;
+import org.bukkit.Chunk;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
 import org.bukkit.plugin.Plugin;
@@ -82,6 +84,58 @@ public final class FoliaPatcher {
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.severe("[FoliaPhantom] Failed to create world '" + creator.name() + "': " + e.getMessage());
             return null;
+        }
+    }
+
+    // --- Thread-Safe Chunk Operations ---
+
+    /**
+     * Safely gets the entities in a chunk.
+     * Schedules the operation on the appropriate region scheduler and blocks for the result if not on the main thread.
+     */
+    public static Entity[] safeGetEntities(Plugin plugin, Chunk chunk) {
+        if (Bukkit.isPrimaryThread()) {
+            return chunk.getEntities();
+        } else {
+            CompletableFuture<Entity[]> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().execute(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> {
+                try {
+                    future.complete(chunk.getEntities());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(1000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities for chunk at " + chunk.getX() + ", " + chunk.getZ(), e);
+                return new Entity[0];
+            }
+        }
+    }
+
+    /**
+     * Safely gets the tile entities in a chunk.
+     * Schedules the operation on the appropriate region scheduler and blocks for the result if not on the main thread.
+     */
+    public static BlockState[] safeGetTileEntities(Plugin plugin, Chunk chunk) {
+        if (Bukkit.isPrimaryThread()) {
+            return chunk.getTileEntities();
+        } else {
+            CompletableFuture<BlockState[]> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().execute(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), () -> {
+                try {
+                    future.complete(chunk.getTileEntities());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(1000, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get tile entities for chunk at " + chunk.getX() + ", " + chunk.getZ(), e);
+                return new BlockState[0];
+            }
         }
     }
 

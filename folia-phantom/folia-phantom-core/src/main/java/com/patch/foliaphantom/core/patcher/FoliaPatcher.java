@@ -630,6 +630,43 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Event Calling ---
+
+    /**
+     * Safely calls an event, ensuring it is executed on the correct thread based on its context.
+     * For example, a PlayerEvent will be executed on the player's scheduler.
+     * If the context cannot be determined, it defaults to the global region scheduler.
+     * If already on a primary server thread, the event is called directly.
+     *
+     * @param plugin The plugin calling the event.
+     * @param event  The event to call.
+     */
+    public static void safeCallEvent(Plugin plugin, org.bukkit.event.Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+
+        java.util.function.Consumer<ScheduledTask> task = t -> Bukkit.getPluginManager().callEvent(event);
+
+        if (event instanceof org.bukkit.event.player.PlayerEvent) {
+            org.bukkit.entity.Player player = ((org.bukkit.event.player.PlayerEvent) event).getPlayer();
+            player.getScheduler().run(plugin, task, null);
+        } else if (event instanceof org.bukkit.event.entity.EntityEvent) {
+            org.bukkit.entity.Entity entity = ((org.bukkit.event.entity.EntityEvent) event).getEntity();
+            Bukkit.getRegionScheduler().run(plugin, entity.getLocation(), task);
+        } else if (event instanceof org.bukkit.event.block.BlockEvent) {
+            org.bukkit.block.Block block = ((org.bukkit.event.block.BlockEvent) event).getBlock();
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task);
+        } else if (event instanceof org.bukkit.event.world.WorldEvent) {
+            org.bukkit.World world = ((org.bukkit.event.world.WorldEvent) event).getWorld();
+            world.getScheduler().run(plugin, task, null);
+        } else {
+            // Fallback for generic events
+            Bukkit.getGlobalRegionScheduler().run(plugin, task);
+        }
+    }
+
 
     // --- Legacy / Int-returning Method Mappings ---
 

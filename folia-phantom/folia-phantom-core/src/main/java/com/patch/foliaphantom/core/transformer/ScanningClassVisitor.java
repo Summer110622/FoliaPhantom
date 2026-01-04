@@ -48,44 +48,60 @@ public class ScanningClassVisitor extends ClassVisitor {
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            if (needsPatching)
-                return;
+            if (needsPatching) return;
 
-            // Define targets that trigger the 'needsPatching' flag
-            if (ORIGINAL_PATCHER_PATH.equals(owner) ||
-                    "org/bukkit/scheduler/BukkitScheduler".equals(owner) ||
-                    "org/bukkit/scheduler/BukkitRunnable".equals(owner) ||
-                    "org/bukkit/WorldCreator".equals(owner) ||
-                    ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) ||
-                    ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData")) ||
-                    ("org/bukkit/World".equals(owner) && name.equals("spawn")) ||
-                    ("org/bukkit/World".equals(owner) && name.equals("loadChunk")) ||
-                    ("org/bukkit/Bukkit".equals(owner) && name.equals("createWorld")) ||
-                    ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator"))) {
+            if (isPatcherRelated(owner) || isScheduler(owner) || isWorldCreator(owner, name) || isBlockOperation(owner, name) || isWorldOperation(owner, name) || isBukkitRunnableCall(opcode, name, desc)) {
                 needsPatching = true;
-                return;
             }
-
-            // Check for BukkitRunnable instance method calls
-            if (opcode == Opcodes.INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
-                needsPatching = true;
-                return;
-            }
-
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
 
-        private boolean isBukkitRunnableInstanceMethod(String name, String desc) {
-            String mk = name + desc;
-            return mk.equals("runTask(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
-                    mk.equals("runTaskLater(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;") ||
-                    mk.equals("runTaskTimer(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;") ||
-                    mk.equals("runTaskAsynchronously(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
-                    mk.equals(
-                            "runTaskLaterAsynchronously(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;")
-                    ||
-                    mk.equals(
-                            "runTaskTimerAsynchronously(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;");
+        private boolean isPatcherRelated(String owner) {
+            return ORIGINAL_PATCHER_PATH.equals(owner);
+        }
+
+        private boolean isScheduler(String owner) {
+            return "org/bukkit/scheduler/BukkitScheduler".equals(owner) || "org/bukkit/scheduler/BukkitRunnable".equals(owner);
+        }
+
+        private boolean isWorldCreator(String owner, String name) {
+            return "org/bukkit/WorldCreator".equals(owner) ||
+                   ("org/bukkit/Bukkit".equals(owner) && "createWorld".equals(name)) ||
+                   ("org/bukkit/plugin/Plugin".equals(owner) && "getDefaultWorldGenerator".equals(name));
+        }
+
+        private boolean isBlockOperation(String owner, String name) {
+            if (!"org/bukkit/block/Block".equals(owner)) return false;
+            switch (name) {
+                case "setType":
+                case "setBlockData":
+                case "getState":
+                case "getChunk":
+                case "getX":
+                case "getY":
+                case "getZ":
+                case "getLightLevel":
+                case "getLightFromSky":
+                case "getLightFromBlocks":
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        private boolean isWorldOperation(String owner, String name) {
+            return "org/bukkit/World".equals(owner) && ("spawn".equals(name) || "loadChunk".equals(name));
+        }
+
+        private boolean isBukkitRunnableCall(int opcode, String name, String desc) {
+            if (opcode != Opcodes.INVOKEVIRTUAL) return false;
+            String methodSignature = name + desc;
+            return methodSignature.equals("runTask(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
+                   methodSignature.equals("runTaskLater(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;") ||
+                   methodSignature.equals("runTaskTimer(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;") ||
+                   methodSignature.equals("runTaskAsynchronously(Lorg/bukkit/plugin/Plugin;)Lorg/bukkit/scheduler/BukkitTask;") ||
+                   methodSignature.equals("runTaskLaterAsynchronously(Lorg/bukkit/plugin/Plugin;J)Lorg/bukkit/scheduler/BukkitTask;") ||
+                   methodSignature.equals("runTaskTimerAsynchronously(Lorg/bukkit/plugin/Plugin;JJ)Lorg/bukkit/scheduler/BukkitTask;");
         }
     }
 }

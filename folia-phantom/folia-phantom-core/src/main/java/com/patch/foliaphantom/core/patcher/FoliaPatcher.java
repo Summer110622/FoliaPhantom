@@ -334,22 +334,6 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
-    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
-        }
-    }
-
-    public static void safeSetTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
-        }
-    }
-
     /**
      * Safely spawns an entity in the world at the given location.
      * If not on the main thread, this will schedule the spawn and block until it completes.
@@ -376,16 +360,6 @@ public final class FoliaPatcher {
         }
     }
 
-    /**
-     * Safely sets the block data for a block.
-     */
-    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setBlockData(data, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
-        }
-    }
 
     /**
      * Safely loads a chunk, generating it if specified.
@@ -628,6 +602,115 @@ public final class FoliaPatcher {
                 Bukkit.getGlobalRegionScheduler().run(plugin, ignored -> inventory.clear());
             }
         }
+    }
+
+    // --- Thread-Safe Block Operations ---
+
+    private static <T> T getFuture(CompletableFuture<T> future, String operationDescription) {
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            String errorMessage = String.format(
+                "[FoliaPhantom] CRITICAL: Patched operation '%s' timed out after 100ms. " +
+                "This indicates a SEVERE server performance issue or a potential deadlock. " +
+                "The operation has been aborted to prevent a server crash.",
+                operationDescription
+            );
+            LOGGER.log(Level.SEVERE, errorMessage, e);
+            throw new FoliaPatcherTimeoutException(errorMessage, e);
+        }
+    }
+
+    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setType(material);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
+        }
+    }
+
+    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setType(material, applyPhysics);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
+        }
+    }
+
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
+        }
+    }
+
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data, applyPhysics);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
+        }
+    }
+
+    public static org.bukkit.block.BlockState safeGetState(Plugin plugin, Block block) {
+        if (Bukkit.isPrimaryThread()) {
+            return block.getState();
+        }
+        CompletableFuture<org.bukkit.block.BlockState> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> future.complete(block.getState()));
+        return getFuture(future, "Block.getState at " + block.getLocation());
+    }
+
+    public static org.bukkit.Chunk safeGetChunk(Plugin plugin, Block block) {
+        if (Bukkit.isPrimaryThread()) {
+            return block.getChunk();
+        }
+        CompletableFuture<org.bukkit.Chunk> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> future.complete(block.getChunk()));
+        return getFuture(future, "Block.getChunk at " + block.getLocation());
+    }
+
+    // These coordinate getters are inherently thread-safe as they access final fields.
+    // No scheduling is required. The transformer redirects here for consistency and
+    // because a static call is slightly faster than an interface call.
+    public static int safeGetX(Block block) {
+        return block.getX();
+    }
+
+    public static int safeGetY(Block block) {
+        return block.getY();
+    }
+
+    public static int safeGetZ(Block block) {
+        return block.getZ();
+    }
+
+    public static byte safeGetLightLevel(Plugin plugin, Block block) {
+        if (Bukkit.isPrimaryThread()) {
+            return block.getLightLevel();
+        }
+        CompletableFuture<Byte> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> future.complete(block.getLightLevel()));
+        return getFuture(future, "Block.getLightLevel at " + block.getLocation());
+    }
+
+    public static byte safeGetLightFromSky(Plugin plugin, Block block) {
+        if (Bukkit.isPrimaryThread()) {
+            return block.getLightFromSky();
+        }
+        CompletableFuture<Byte> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> future.complete(block.getLightFromSky()));
+        return getFuture(future, "Block.getLightFromSky at " + block.getLocation());
+    }
+
+    public static byte safeGetLightFromBlocks(Plugin plugin, Block block) {
+        if (Bukkit.isPrimaryThread()) {
+            return block.getLightFromBlocks();
+        }
+        CompletableFuture<Byte> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> future.complete(block.getLightFromBlocks()));
+        return getFuture(future, "Block.getLightFromBlocks at " + block.getLocation());
     }
 
 

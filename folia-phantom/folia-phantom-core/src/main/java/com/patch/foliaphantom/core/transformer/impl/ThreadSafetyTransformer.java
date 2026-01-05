@@ -108,14 +108,6 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         return transform(2, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V");
                     }
                     break;
-                case "org/bukkit/World":
-                    if ("spawn".equals(name) && "(Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;".equals(desc)) {
-                        return transform(2, "safeSpawnEntity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;");
-                    }
-                    if ("loadChunk".equals(name) && "(IIZ)V".equals(desc)) {
-                        return transform(3, "safeLoadChunk", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;IIZ)V");
-                    }
-                    break;
             }
             return false;
         }

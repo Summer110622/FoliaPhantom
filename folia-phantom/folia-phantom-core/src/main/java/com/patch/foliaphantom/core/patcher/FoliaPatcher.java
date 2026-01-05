@@ -417,6 +417,116 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely spawns an entity of a given type in the world.
+     * Schedules the operation and blocks for the result if not on the main thread.
+     */
+    public static Entity safeSpawnEntity(Plugin plugin, World world, Location location, org.bukkit.entity.EntityType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawnEntity(location, type);
+        } else {
+            CompletableFuture<Entity> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.spawnEntity(location, type));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + type.name(), e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely gets the list of all entities in a world.
+     * Schedules the operation and blocks for the result if not on the main thread.
+     */
+    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        } else {
+            CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+            // We need a location in the world to schedule. The spawn location is a safe bet.
+            Bukkit.getRegionScheduler().run(plugin, world.getSpawnLocation(), task -> {
+                try {
+                    future.complete(world.getEntities());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities for world " + world.getName(), e);
+                return java.util.Collections.emptyList();
+            }
+        }
+    }
+
+    /**
+     * Safely gets the list of all players in a world. World.getPlayers() is thread-safe.
+     */
+    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
+        // This method is already thread-safe, so no special handling is needed.
+        // The plugin argument is kept for signature compatibility with the transformer.
+        return world.getPlayers();
+    }
+
+    /**
+     * Safely drops an item at a specific location in the world.
+     * Schedules the operation and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.entity.Item safeDropItem(Plugin plugin, World world, Location location, org.bukkit.inventory.ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.dropItem(location, item);
+        } else {
+            CompletableFuture<org.bukkit.entity.Item> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.dropItem(location, item));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item " + item.getType(), e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely strikes lightning at a specific location in the world.
+     * Schedules the operation and blocks for the result if not on the main thread.
+     */
+    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        } else {
+            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.strikeLightning(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning at " + location, e);
+                return null;
+            }
+        }
+    }
+
     // --- Thread-Safe Scoreboard Operations ---
 
     public static org.bukkit.scoreboard.Objective safeRegisterNewObjective(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String name, String criteria) {

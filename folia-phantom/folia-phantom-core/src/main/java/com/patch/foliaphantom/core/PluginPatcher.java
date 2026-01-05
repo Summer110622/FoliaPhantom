@@ -20,6 +20,7 @@ import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
+import com.patch.foliaphantom.core.transformer.impl.WorldAccessTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -179,6 +180,7 @@ public class PluginPatcher {
             transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
             transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
+            transformers.add(new WorldAccessTransformer(logger, relocatedPatcherPath));
             transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));

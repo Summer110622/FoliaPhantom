@@ -334,6 +334,80 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
+    /**
+     * Safely gets the list of entities from a world.
+     * Schedules the operation on the global region scheduler if not on the main thread.
+     */
+    public static java.util.List<Entity> getEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        } else {
+            CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(world.getEntities());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities from world " + world.getName(), e);
+                return java.util.Collections.emptyList();
+            }
+        }
+    }
+
+    /**
+     * Safely gets the list of players from a world.
+     * Schedules the operation on the global region scheduler if not on the main thread.
+     */
+    public static java.util.List<org.bukkit.entity.Player> getPlayers(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getPlayers();
+        } else {
+            CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                try {
+                    future.complete(world.getPlayers());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players from world " + world.getName(), e);
+                return java.util.Collections.emptyList();
+            }
+        }
+    }
+
+    /**
+     * Safely spawns an entity in the world by its type.
+     */
+    public static Entity spawnEntity(Plugin plugin, World world, Location location, org.bukkit.entity.EntityType type) {
+         if (Bukkit.isPrimaryThread()) {
+            return world.spawnEntity(location, type);
+        } else {
+            CompletableFuture<Entity> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.spawnEntity(location, type));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + type.name(), e);
+                return null;
+            }
+        }
+    }
+
     public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);

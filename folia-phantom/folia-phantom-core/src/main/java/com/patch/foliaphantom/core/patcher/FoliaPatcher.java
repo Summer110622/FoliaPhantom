@@ -376,6 +376,111 @@ public final class FoliaPatcher {
         }
     }
 
+    public static Entity safeSpawnEntity(Plugin plugin, World world, Location location, org.bukkit.entity.EntityType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawnEntity(location, type);
+        } else {
+            CompletableFuture<Entity> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.spawnEntity(location, type));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + type.name(), e);
+                return null;
+            }
+        }
+    }
+
+    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        } else {
+            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.strikeLightning(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
+                return null;
+            }
+        }
+    }
+
+    public static org.bukkit.entity.LightningStrike safeStrikeLightningEffect(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightningEffect(location);
+        } else {
+            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.strikeLightningEffect(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning effect", e);
+                return null;
+            }
+        }
+    }
+
+    public static boolean safeGenerateTree(Plugin plugin, World world, Location location, org.bukkit.TreeType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.generateTree(location, type);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.generateTree(location, type));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(500, TimeUnit.MILLISECONDS); // Tree generation can be slow
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree of type " + type.name(), e);
+                return false;
+            }
+        }
+    }
+
+    public static boolean safeCreateExplosion(Plugin plugin, World world, Location location, float power) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.createExplosion(location, power);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.createExplosion(location, power));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+                return false;
+            }
+        }
+    }
+
     /**
      * Safely sets the block data for a block.
      */

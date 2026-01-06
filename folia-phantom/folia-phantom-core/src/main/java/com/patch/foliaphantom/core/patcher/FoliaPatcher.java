@@ -630,6 +630,150 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- START: Added by WorldAccessTransformer ---
+
+    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        }
+        CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().execute(plugin, world, 0, 0, () -> {
+            try {
+                future.complete(world.getEntities());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities from world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public static Entity safeSpawnEntity(Plugin plugin, World world, Location location, org.bukkit.entity.EntityType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawnEntity(location, type);
+        }
+        CompletableFuture<Entity> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.spawnEntity(location, type));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + type.name(), e);
+            return null;
+        }
+    }
+
+    public static <T extends Entity> T safeSpawnLegacy(Plugin plugin, World world, Location location, Class<T> clazz) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawn(location, clazz);
+        }
+        CompletableFuture<T> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.spawn(location, clazz));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn legacy entity of type " + clazz.getName(), e);
+            return null;
+        }
+    }
+
+    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        }
+        CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.strikeLightning(location));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning at " + location, e);
+            return null;
+        }
+    }
+
+    public static boolean safeGenerateTree(Plugin plugin, World world, Location location, org.bukkit.TreeType treeType) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.generateTree(location, treeType);
+        }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.generateTree(location, treeType));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(500, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree at " + location, e);
+            return false;
+        }
+    }
+
+    public static boolean safeCreateExplosion(Plugin plugin, World world, Location loc, float power) {
+         if (Bukkit.isPrimaryThread()) {
+            return world.createExplosion(loc, power, false, true);
+        }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, loc, task -> {
+            try {
+                future.complete(world.createExplosion(loc, power, false, true));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+            return false;
+        }
+    }
+
+    public static boolean safeCreateExplosion(Plugin plugin, World world, double x, double y, double z, float power, boolean setFire, boolean breakBlocks) {
+        if (Bukkit.isPrimaryThread()) {
+           return world.createExplosion(x, y, z, power, setFire, breakBlocks);
+       }
+       CompletableFuture<Boolean> future = new CompletableFuture<>();
+       Location loc = new Location(world, x, y, z);
+       Bukkit.getRegionScheduler().run(plugin, loc, task -> {
+           try {
+               future.complete(world.createExplosion(x, y, z, power, setFire, breakBlocks));
+           } catch (Exception e) {
+               future.completeExceptionally(e);
+           }
+       });
+       try {
+           return future.get(100, TimeUnit.MILLISECONDS);
+       } catch (Exception e) {
+           LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+           return false;
+       }
+   }
+
+    // --- END: Added by WorldAccessTransformer ---
 
     // --- Legacy / Int-returning Method Mappings ---
 

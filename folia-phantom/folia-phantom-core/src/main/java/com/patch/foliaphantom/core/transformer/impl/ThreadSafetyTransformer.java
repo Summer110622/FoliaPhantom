@@ -53,8 +53,6 @@ public class ThreadSafetyTransformer implements ClassTransformer {
 
         @Override
         public FieldVisitor visitField(int access, String name, String desc, String sig, Object val) {
-            // Find the first field that is a Plugin or a subclass. This is our best-effort
-            // guess for the plugin instance.
             if (pluginFieldName == null && (desc.equals(PLUGIN_DESC) || desc.equals(JAVA_PLUGIN_DESC))) {
                 this.pluginFieldName = name;
                 this.pluginFieldDesc = desc;
@@ -65,8 +63,6 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            // Only transform methods if we have found a plugin field to reference.
-            // Without it, we cannot inject the required plugin instance.
             if (pluginFieldName != null) {
                 return new ThreadSafetyMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc);
             }
@@ -91,58 +87,37 @@ public class ThreadSafetyTransformer implements ClassTransformer {
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            if (tryHandle(owner, name, desc)) {
+            if (owner.equals("org/bukkit/block/Block") && tryHandle(name, desc)) {
                 return;
             }
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
 
-        private boolean tryHandle(String owner, String name, String desc) {
-            switch (owner) {
-                case "org/bukkit/block/Block":
-                    if ("setType".equals(name)) {
-                        if ("(Lorg/bukkit/Material;)V".equals(desc)) return transform(1, "safeSetType", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V");
-                        if ("(Lorg/bukkit/Material;Z)V".equals(desc)) return transform(2, "safeSetTypeWithPhysics", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V");
-                    }
-                    if ("setBlockData".equals(name) && "(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
-                        return transform(2, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V");
-                    }
+        private boolean tryHandle(String name, String desc) {
+            switch (name) {
+                case "setType":
+                    if ("(Lorg/bukkit/Material;)V".equals(desc)) return transform(1, "safeSetType", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V");
+                    if ("(Lorg/bukkit/Material;Z)V".equals(desc)) return transform(2, "safeSetTypeWithPhysics", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V");
                     break;
-                case "org/bukkit/World":
-                    if ("spawn".equals(name) && "(Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;".equals(desc)) {
-                        return transform(2, "safeSpawnEntity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;");
-                    }
-                    if ("loadChunk".equals(name) && "(IIZ)V".equals(desc)) {
-                        return transform(3, "safeLoadChunk", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;IIZ)V");
+                case "setBlockData":
+                    if ("(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
+                        return transform(2, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V");
                     }
                     break;
             }
             return false;
         }
 
-        /**
-         * Generic transformation logic.
-         * @param argCount Number of arguments on the stack (excluding the instance).
-         * @param newName The name of the static method in FoliaPatcher.
-         * @param newDesc The descriptor of the static method.
-         */
         private boolean transform(int argCount, String newName, String newDesc) {
             Type[] argTypes = Type.getArgumentTypes(newDesc);
-
-            // Store all original arguments (including the instance) into local variables.
-            // The instance ('world' or 'block') is at argTypes[1]. The actual args start at [2].
             int[] locals = new int[argCount + 1];
             for (int i = argCount; i >= 0; i--) {
-                // The new descriptor has Plugin as the first arg, so original args are offset by 1.
                 locals[i] = newLocal(argTypes[i + 1]);
                 storeLocal(locals[i]);
             }
 
-            // Stack is now empty.
-            // Push the plugin instance onto the stack.
             injectPluginInstance();
 
-            // Push the original arguments back onto the stack from locals.
             for (int i = 0; i <= argCount; i++) {
                 loadLocal(locals[i]);
             }
@@ -152,7 +127,6 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         }
 
         private void injectPluginInstance() {
-            // Load `this` onto the stack, then get the plugin field from it.
             loadThis();
             getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, pluginFieldType);
         }

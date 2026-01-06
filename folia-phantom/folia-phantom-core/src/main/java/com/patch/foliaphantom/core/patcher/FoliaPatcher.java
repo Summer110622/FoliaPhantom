@@ -13,10 +13,12 @@ package com.patch.foliaphantom.core.patcher;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Location;
+import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -414,6 +416,86 @@ public final class FoliaPatcher {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
                 return false;
             }
+        }
+    }
+
+    // --- Thread-Safe World Access ---
+
+    /**
+     * Safely spawns an entity in the world.
+     * It blocks for a result if called off-thread.
+     */
+    public static Entity spawnEntity(Plugin plugin, World world, Location location, EntityType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.spawnEntity(location, type);
+        }
+
+        CompletableFuture<Entity> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.spawnEntity(location, type));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + type.name(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely strikes lightning at a location.
+     * It blocks for a result if called off-thread.
+     */
+    public static org.bukkit.entity.LightningStrike strikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        }
+
+        CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.strikeLightning(location));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely generates a tree at a location.
+     * It blocks for a result if called off-thread.
+     */
+    public static boolean generateTree(Plugin plugin, World world, Location location, TreeType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.generateTree(location, type);
+        }
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.generateTree(location, type));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
+            return false;
         }
     }
 

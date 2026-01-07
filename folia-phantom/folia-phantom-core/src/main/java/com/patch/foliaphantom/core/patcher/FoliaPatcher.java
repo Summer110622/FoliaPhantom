@@ -80,8 +80,7 @@ public final class FoliaPatcher {
         try {
             return future.get();
         } catch (InterruptedException | ExecutionException e) {
-            LOGGER.severe("[FoliaPhantom] Failed to create world '" + creator.name() + "': " + e.getMessage());
-            return null;
+            throw new PatcherRuntimeException("Failed to create world '" + creator.name() + "'", e);
         }
     }
 
@@ -370,8 +369,7 @@ public final class FoliaPatcher {
                 // Block for a short time to prevent server hangs
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
-                return null;
+                throw new PatcherRuntimeException("Failed to spawn entity of type " + clazz.getSimpleName(), e);
             }
         }
     }
@@ -411,8 +409,7 @@ public final class FoliaPatcher {
                 // We use teleportAsync and wait for it to complete.
                 return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
-                return false;
+                throw new PatcherRuntimeException("Failed to teleport player " + player.getName(), e);
             }
         }
     }
@@ -434,8 +431,7 @@ public final class FoliaPatcher {
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new objective '" + name + "'", e);
-                return null;
+                throw new PatcherRuntimeException("Failed to register new objective '" + name + "'", e);
             }
         }
     }
@@ -455,8 +451,7 @@ public final class FoliaPatcher {
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new team '" + name + "'", e);
-                return null;
+                throw new PatcherRuntimeException("Failed to register new team '" + name + "'", e);
             }
         }
     }
@@ -496,8 +491,7 @@ public final class FoliaPatcher {
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to remove team entry '" + entry + "'", e);
-                return false;
+                throw new PatcherRuntimeException("Failed to remove team entry '" + entry + "'", e);
             }
         }
     }
@@ -602,12 +596,7 @@ public final class FoliaPatcher {
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to add item to inventory", e);
-                java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remainingItems = new java.util.HashMap<>();
-                for (int i = 0; i < items.length; i++) {
-                    remainingItems.put(i, items[i]);
-                }
-                return remainingItems;
+                throw new PatcherRuntimeException("Failed to add item to inventory", e);
             }
         }
     }
@@ -671,5 +660,16 @@ public final class FoliaPatcher {
                 task.cancel();
         });
         runningTasks.clear();
+    }
+
+    /**
+     * Custom runtime exception for FoliaPatcher operations.
+     * This indicates a failure during a scheduled, thread-safe operation,
+     * often due to a timeout or an exception in the scheduled task.
+     */
+    public static class PatcherRuntimeException extends RuntimeException {
+        public PatcherRuntimeException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

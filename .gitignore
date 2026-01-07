@@ -1,3 +1,9 @@
+# Build artifacts
+/argo/
+/dummy-plugin/
+/patched-plugins/
+*.jar
+
 # Maven
 target/
 pom.xml.tag
@@ -7,16 +13,11 @@ pom.xml.next
 release.properties
 dependency-reduced-pom.xml
 buildNumber.properties
+.mvn/timing.properties
+.mvn/wrapper/maven-wrapper.jar
 
-# IDE files
+# IDE
 .idea/
 *.iml
 *.iws
-*.ipr
-
-# Log files
-*.log
-logs/
-
-# Other
-/patched-plugins/
+.vscode/

@@ -115,6 +115,30 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     if ("loadChunk".equals(name) && "(IIZ)V".equals(desc)) {
                         return transform(3, "safeLoadChunk", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;IIZ)V");
                     }
+                    if ("dropItem".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;".equals(desc)) {
+                        return transform(2, "safeDropItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;");
+                    }
+                    if ("dropItemNaturally".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;".equals(desc)) {
+                        return transform(2, "safeDropItemNaturally", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;");
+                    }
+                    if ("createExplosion".equals(name) && "(Lorg/bukkit/Location;FZZ)Z".equals(desc)) {
+                        return transform(4, "safeCreateExplosion", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;FZZ)Z");
+                    }
+                    if ("playEffect".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/Effect;Ljava/lang/Object;)V".equals(desc)) {
+                        return transform(3, "safePlayEffect", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/Effect;Ljava/lang/Object;)V");
+                    }
+                    if ("playSound".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V".equals(desc)) {
+                        return transform(4, "safePlaySound", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V");
+                    }
+                    if ("strikeLightning".equals(name) && "(Lorg/bukkit/Location;)Lorg/bukkit/entity/LightningStrike;".equals(desc)) {
+                        return transform(1, "safeStrikeLightning", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;)Lorg/bukkit/entity/LightningStrike;");
+                    }
+                    if ("generateTree".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/TreeType;)Z".equals(desc)) {
+                        return transform(2, "safeGenerateTree", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/TreeType;)Z");
+                    }
+                    if ("setGameRule".equals(name) && "(Lorg/bukkit/GameRule;Ljava/lang/Object;)Z".equals(desc)) {
+                        return transform(2, "safeSetGameRule", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/GameRule;Ljava/lang/Object;)Z");
+                    }
                     break;
             }
             return false;

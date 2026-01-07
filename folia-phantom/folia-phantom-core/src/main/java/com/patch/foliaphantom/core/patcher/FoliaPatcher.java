@@ -399,6 +399,48 @@ public final class FoliaPatcher {
         }
     }
 
+    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        } else {
+            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.strikeLightning(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
+                return null;
+            }
+        }
+    }
+
+    public static boolean safeCreateExplosion(Plugin plugin, World world, Location location, float power) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.createExplosion(location, power);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.createExplosion(location, power));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+                return false;
+            }
+        }
+    }
+
     /**
      * Safely teleports a player to a new location.
      * If not on the main thread, this will use async teleport and block for the result.

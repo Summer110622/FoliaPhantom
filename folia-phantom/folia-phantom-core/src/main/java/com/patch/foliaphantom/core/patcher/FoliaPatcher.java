@@ -12,11 +12,16 @@ package com.patch.foliaphantom.core.patcher;
 
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
+import org.bukkit.Effect;
+import org.bukkit.GameRule;
 import org.bukkit.Location;
+import org.bukkit.Sound;
+import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
@@ -412,6 +417,155 @@ public final class FoliaPatcher {
                 return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException | TimeoutException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely drops an item at the specified location.
+     */
+    public static org.bukkit.entity.Item safeDropItem(Plugin plugin, World world, Location location, ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.dropItem(location, item);
+        } else {
+            CompletableFuture<org.bukkit.entity.Item> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.dropItem(location, item));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely drops an item naturally at the specified location.
+     */
+    public static org.bukkit.entity.Item safeDropItemNaturally(Plugin plugin, World world, Location location, ItemStack item) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.dropItemNaturally(location, item);
+        } else {
+            CompletableFuture<org.bukkit.entity.Item> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.dropItemNaturally(location, item));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely creates an explosion. Using the modern method signature.
+     */
+    public static boolean safeCreateExplosion(Plugin plugin, World world, Location location, float power, boolean setFire, boolean breakBlocks) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.createExplosion(location, power, setFire, breakBlocks);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.createExplosion(location, power, setFire, breakBlocks)));
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely plays a particle effect.
+     */
+    public static <T> void safePlayEffect(Plugin plugin, World world, Location location, Effect effect, T data) {
+        if (Bukkit.isPrimaryThread()) {
+            world.playEffect(location, effect, data);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, location, task -> world.playEffect(location, effect, data));
+        }
+    }
+
+    /**
+     * Safely plays a sound.
+     */
+    public static void safePlaySound(Plugin plugin, World world, Location location, Sound sound, float volume, float pitch) {
+        if (Bukkit.isPrimaryThread()) {
+            world.playSound(location, sound, volume, pitch);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, location, task -> world.playSound(location, sound, volume, pitch));
+        }
+    }
+
+    /**
+     * Safely strikes lightning.
+     */
+    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.strikeLightning(location);
+        } else {
+            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> {
+                try {
+                    future.complete(world.strikeLightning(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
+                return null;
+            }
+        }
+    }
+
+    /**
+     * Safely generates a tree.
+     */
+    public static boolean safeGenerateTree(Plugin plugin, World world, Location location, TreeType type) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.generateTree(location, type);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.generateTree(location, type)));
+            try {
+                return future.get(500, TimeUnit.MILLISECONDS); // Tree gen can be slow
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely sets a game rule. This is a global operation.
+     */
+    public static <T> boolean safeSetGameRule(Plugin plugin, World world, GameRule<T> rule, T value) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.setGameRule(rule, value);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            // Game rules are global, so use the global scheduler
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.setGameRule(rule, value)));
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
                 return false;
             }
         }

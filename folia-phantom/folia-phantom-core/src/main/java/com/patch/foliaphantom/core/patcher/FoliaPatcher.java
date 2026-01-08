@@ -784,6 +784,108 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Player Operations ---
+
+    public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String message) {
+        if (Bukkit.isPrimaryThread()) {
+            player.sendMessage(message);
+        } else {
+            player.getScheduler().run(plugin, task -> player.sendMessage(message), null);
+        }
+    }
+
+    public static void safeSendMessages(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
+        if (Bukkit.isPrimaryThread()) {
+            player.sendMessage(messages);
+        } else {
+            player.getScheduler().run(plugin, task -> player.sendMessage(messages), null);
+        }
+    }
+
+    public static void safeKickPlayer(Plugin plugin, org.bukkit.entity.Player player, String message) {
+        if (Bukkit.isPrimaryThread()) {
+            player.kickPlayer(message);
+        } else {
+            player.getScheduler().run(plugin, task -> player.kickPlayer(message), null);
+        }
+    }
+
+    public static void safeSetHealth(Plugin plugin, org.bukkit.entity.Player player, double health) {
+        if (Bukkit.isPrimaryThread()) {
+            player.setHealth(health);
+        } else {
+            player.getScheduler().run(plugin, task -> player.setHealth(health), null);
+        }
+    }
+
+    public static void safeSetFoodLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+        if (Bukkit.isPrimaryThread()) {
+            player.setFoodLevel(level);
+        } else {
+            player.getScheduler().run(plugin, task -> player.setFoodLevel(level), null);
+        }
+    }
+
+    public static void safeGiveExp(Plugin plugin, org.bukkit.entity.Player player, int amount) {
+        if (Bukkit.isPrimaryThread()) {
+            player.giveExp(amount);
+        } else {
+            player.getScheduler().run(plugin, task -> player.giveExp(amount), null);
+        }
+    }
+
+    public static void safeSetLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+        if (Bukkit.isPrimaryThread()) {
+            player.setLevel(level);
+        } else {
+            player.getScheduler().run(plugin, task -> player.setLevel(level), null);
+        }
+    }
+
+    public static void safePlaySound(Plugin plugin, org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
+        if (Bukkit.isPrimaryThread()) {
+            player.playSound(location, sound, volume, pitch);
+        } else {
+            player.getScheduler().run(plugin, task -> player.playSound(location, sound, volume, pitch), null);
+        }
+    }
+
+    public static void safeSendTitle(Plugin plugin, org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+        if (Bukkit.isPrimaryThread()) {
+            player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
+        } else {
+            player.getScheduler().run(plugin, task -> player.sendTitle(title, subtitle, fadeIn, stay, fadeOut), null);
+        }
+    }
+
+    public static org.bukkit.inventory.InventoryView safeOpenInventory(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.openInventory(inventory);
+        } else {
+            CompletableFuture<org.bukkit.inventory.InventoryView> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.openInventory(inventory));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
+                return null;
+            }
+        }
+    }
+
+    public static void safeCloseInventory(Plugin plugin, org.bukkit.entity.Player player) {
+        if (Bukkit.isPrimaryThread()) {
+            player.closeInventory();
+        } else {
+            player.getScheduler().run(plugin, task -> player.closeInventory(), null);
+        }
+    }
 
     // --- Legacy / Int-returning Method Mappings ---
 

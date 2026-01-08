@@ -2,6 +2,7 @@
 /argo/
 /dummy-plugin/
 /patched-plugins/
+/unzipped_jar/
 *.jar
 
 # Maven

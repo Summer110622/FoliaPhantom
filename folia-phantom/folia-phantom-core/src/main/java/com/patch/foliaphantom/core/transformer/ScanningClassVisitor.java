@@ -61,7 +61,11 @@ public class ScanningClassVisitor extends ClassVisitor {
                     ("org/bukkit/World".equals(owner) && name.equals("spawn")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("loadChunk")) ||
                     ("org/bukkit/Bukkit".equals(owner) && name.equals("createWorld")) ||
-                    ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator"))) {
+                    ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator")) ||
+                    "org/bukkit/scoreboard/Scoreboard".equals(owner) ||
+                    "org/bukkit/scoreboard/Team".equals(owner) ||
+                    "org/bukkit/scoreboard/Objective".equals(owner) ||
+                    "org/bukkit/scoreboard/Score".equals(owner)) {
                 needsPatching = true;
                 return;
             }

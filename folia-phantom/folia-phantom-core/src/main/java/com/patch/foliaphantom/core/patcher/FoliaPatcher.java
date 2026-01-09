@@ -887,6 +887,50 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Entity Operations ---
+
+    /**
+     * Safely teleports an entity to a new location.
+     * If not on the main thread, this will use the entity's scheduler and block for the result.
+     * This handles non-player entities.
+     */
+    public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Entity entity, Location location) {
+        // Player has a specialized async teleport method, delegate to it.
+        if (entity instanceof org.bukkit.entity.Player) {
+            return safeTeleport(plugin, (org.bukkit.entity.Player) entity, location);
+        }
+        if (Bukkit.isPrimaryThread()) {
+            return entity.teleport(location);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            entity.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(entity.teleport(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(1, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Safely removes an entity from the world.
+     * Schedules the operation on the entity's scheduler if not on the main thread.
+     */
+    public static void safeRemove(Plugin plugin, org.bukkit.entity.Entity entity) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.remove();
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.remove(), null);
+        }
+    }
+
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

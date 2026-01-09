@@ -67,6 +67,20 @@ public class ScanningClassVisitor extends ClassVisitor {
                 return;
             }
 
+            // Check for unsafe Entity methods
+            if ("org/bukkit/entity/Entity".equals(owner)) {
+                switch (name) {
+                    case "remove":
+                    case "setVelocity":
+                    case "teleport":
+                    case "setFireTicks":
+                    case "setCustomName":
+                    case "setGravity":
+                        needsPatching = true;
+                        return;
+                }
+            }
+
             // Check for BukkitRunnable instance method calls
             if (opcode == Opcodes.INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
                 needsPatching = true;

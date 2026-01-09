@@ -1,0 +1,6 @@
+name: TestPlugin
+version: 1.0
+main: TestPlugin
+commands:
+  testremove:
+    description: "Test entity remove patching"

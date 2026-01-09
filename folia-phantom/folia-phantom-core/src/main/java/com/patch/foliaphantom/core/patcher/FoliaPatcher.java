@@ -887,6 +887,69 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Entity Operations ---
+
+    public static void safeRemove(Plugin plugin, Entity entity) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.remove();
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.remove(), null);
+        }
+    }
+
+    public static void safeSetVelocity(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.setVelocity(velocity);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.setVelocity(velocity), null);
+        }
+    }
+
+    public static boolean safeTeleportEntity(Plugin plugin, Entity entity, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return entity.teleport(location);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            entity.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(entity.teleport(location));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(100, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
+                return false;
+            }
+        }
+    }
+
+    public static void safeSetFireTicks(Plugin plugin, Entity entity, int ticks) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.setFireTicks(ticks);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.setFireTicks(ticks), null);
+        }
+    }
+
+    public static void safeSetCustomName(Plugin plugin, Entity entity, String name) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.setCustomName(name);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.setCustomName(name), null);
+        }
+    }
+
+    public static void safeSetGravity(Plugin plugin, Entity entity, boolean gravity) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.setGravity(gravity);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.setGravity(gravity), null);
+        }
+    }
+
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

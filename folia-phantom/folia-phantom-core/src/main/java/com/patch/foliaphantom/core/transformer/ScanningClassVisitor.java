@@ -57,6 +57,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                     "org/bukkit/scheduler/BukkitRunnable".equals(owner) ||
                     "org/bukkit/WorldCreator".equals(owner) ||
                     "org/bukkit/entity/Player".equals(owner) ||
+                    ("org/bukkit/plugin/PluginManager".equals(owner) && name.equals("callEvent")) || // Added for EventCallTransformer
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) ||
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("spawn")) ||

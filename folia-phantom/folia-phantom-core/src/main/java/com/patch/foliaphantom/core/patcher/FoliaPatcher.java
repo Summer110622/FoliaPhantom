@@ -21,6 +21,10 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 import org.bukkit.entity.Entity;
+import org.bukkit.event.Event;
+import org.bukkit.event.block.BlockEvent;
+import org.bukkit.event.entity.EntityEvent;
+import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -927,5 +931,54 @@ public final class FoliaPatcher {
                 task.cancel();
         });
         runningTasks.clear();
+    }
+
+    // --- Thread-Safe Event Calling ---
+
+    /**
+     * Safely calls a Bukkit event, dispatching it to the appropriate scheduler
+     * based on the event's context (player, entity, location, etc.).
+     * This ensures thread safety when events are called from async tasks.
+     *
+     * @param plugin The plugin calling the event.
+     * @param event The event to be called.
+     */
+    public static void safeCallEvent(Plugin plugin, Event event) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getPluginManager().callEvent(event);
+            return;
+        }
+
+        LOGGER.fine("[FoliaPhantom] Intercepted async event call: " + event.getEventName());
+
+        CompletableFuture<Void> future = new CompletableFuture<>();
+        Runnable task = () -> {
+            try {
+                Bukkit.getPluginManager().callEvent(event);
+                future.complete(null);
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        };
+
+        if (event instanceof PlayerEvent) {
+            ((PlayerEvent) event).getPlayer().getScheduler().run(plugin, t -> task.run(), null);
+        } else if (event instanceof EntityEvent) {
+            ((EntityEvent) event).getEntity().getScheduler().run(plugin, t -> task.run(), null);
+        } else if (event instanceof BlockEvent) {
+            Block block = ((BlockEvent) event).getBlock();
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), t -> task.run());
+        } else {
+            // Fallback to global scheduler for events without specific context
+            Bukkit.getGlobalRegionScheduler().run(plugin, t -> task.run());
+        }
+
+        try {
+            // Block until the event is processed to maintain original execution flow.
+            // A timeout is used to prevent the server from hanging on a problematic event handler.
+            future.get(5, TimeUnit.SECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
+        }
     }
 }

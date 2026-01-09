@@ -2,10 +2,14 @@ package com.patch.foliaphantom.cli;
 
 import com.patch.foliaphantom.core.PluginPatcher;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
+import com.patch.foliaphantom.core.transformer.TransformerType;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -19,7 +23,34 @@ public class CLI {
         setupLogger();
         printBanner();
 
-        File inputFile = getInputFile(args);
+        // Default to all transformers enabled
+        Set<TransformerType> enabledTransformers = EnumSet.allOf(TransformerType.class);
+        String inputFileArg = null;
+
+        // Parse command-line arguments
+        for (String arg : args) {
+            if (arg.startsWith("--disable-transformer=")) {
+                String[] disabled = arg.substring("--disable-transformer=".length()).split(",");
+                for (String transformerName : disabled) {
+                    try {
+                        TransformerType toDisable = TransformerType.valueOf(transformerName.trim().toUpperCase());
+                        if (enabledTransformers.remove(toDisable)) {
+                            LOGGER.info("Transformer disabled: " + toDisable.name());
+                        }
+                    } catch (IllegalArgumentException e) {
+                        LOGGER.warning("Invalid transformer name '" + transformerName + "', ignoring.");
+                    }
+                }
+            } else {
+                if (inputFileArg != null) {
+                    LOGGER.warning("Multiple input files specified. Using the first one: " + inputFileArg);
+                } else {
+                    inputFileArg = arg;
+                }
+            }
+        }
+
+        File inputFile = getInputFile(inputFileArg);
         if (inputFile == null) {
             return;
         }
@@ -33,7 +64,7 @@ public class CLI {
         LOGGER.info("Output directory set to: " + outputDir.getAbsolutePath());
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, enabledTransformers);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);
@@ -65,9 +96,9 @@ public class CLI {
         System.out.println("======================================================================");
     }
 
-    private static File getInputFile(String[] args) {
+    private static File getInputFile(String inputFileArg) {
         File inputFile;
-        if (args.length == 0) {
+        if (inputFileArg == null) {
             try (Scanner scanner = new Scanner(System.in)) {
                 System.out.print(">> Enter the path to a JAR file or a directory of JARs: ");
                 String path = scanner.nextLine();
@@ -78,7 +109,7 @@ public class CLI {
                 inputFile = new File(path);
             }
         } else {
-            inputFile = new File(args[0]);
+            inputFile = new File(inputFileArg);
         }
 
         if (!inputFile.exists()) {

@@ -12,16 +12,7 @@ package com.patch.foliaphantom.core;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
-import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
-import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
-import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
-import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
-import com.patch.foliaphantom.core.transformer.impl.InventoryTransformer;
-import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
-import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
-import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
-import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
-import com.patch.foliaphantom.core.transformer.impl.EventCallTransformer;
+import com.patch.foliaphantom.core.transformer.TransformerType;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -32,6 +23,7 @@ import org.objectweb.asm.commons.SimpleRemapper;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.FileSystem;
@@ -41,9 +33,11 @@ import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
@@ -95,6 +89,9 @@ public class PluginPatcher {
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
+    /** Set of enabled transformers for this patching session */
+    private final Set<TransformerType> enabledTransformers;
+
     /** Patched FoliaPatcher internal path */
     private String relocatedPatcherPath;
 
@@ -119,23 +116,37 @@ public class PluginPatcher {
     };
 
     /**
+     * Creates a new PluginPatcher instance with specified logger, listener, and enabled transformers.
+     *
+     * @param logger              Logger for diagnostics
+     * @param progressListener    Listener for real-time progress updates
+     * @param enabledTransformers Set of transformers to enable for this session
+     */
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, Set<TransformerType> enabledTransformers) {
+        this.logger = logger;
+        this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
+        this.enabledTransformers = enabledTransformers != null ? enabledTransformers : EnumSet.allOf(TransformerType.class);
+    }
+
+    /**
      * Creates a new PluginPatcher instance with the specified logger and progress listener.
+     * All transformers are enabled by default.
      *
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this.logger = logger;
-        this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
+        this(logger, progressListener, EnumSet.allOf(TransformerType.class));
     }
 
     /**
      * Creates a new PluginPatcher instance with the specified logger.
+     * All transformers are enabled by default.
      *
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null);
+        this(logger, null, EnumSet.allOf(TransformerType.class));
     }
 
     /**
@@ -177,17 +188,7 @@ public class PluginPatcher {
             this.relocatedPatcherPath = safePluginName + "/folia/runtime";
 
             // Initialize transformers with the relocated path
-            this.transformers = new ArrayList<>();
-            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
-            transformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
-            transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
-            transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
+            initializeTransformers();
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 
@@ -198,6 +199,31 @@ public class PluginPatcher {
             long duration = System.currentTimeMillis() - startTime;
             progressListener.onComplete(duration, getStatistics(), e);
             throw e;
+        }
+    }
+
+    /**
+     * Initializes the transformer instances based on the enabled transformer types.
+     * Uses reflection to create new instances of the transformer classes.
+     */
+    private void initializeTransformers() {
+        this.transformers = new ArrayList<>();
+        if (enabledTransformers == null || enabledTransformers.isEmpty()) {
+            logger.warning("No transformers enabled for this patching session.");
+            return;
+        }
+
+        logger.info("Initializing " + enabledTransformers.size() + " transformers...");
+        for (TransformerType type : TransformerType.values()) {
+            if (enabledTransformers.contains(type)) {
+                try {
+                    Class<? extends ClassTransformer> clazz = type.getTransformerClass();
+                    transformers.add(clazz.getConstructor(Logger.class, String.class).newInstance(logger, relocatedPatcherPath));
+                    logger.fine("Enabled transformer: " + type.name());
+                } catch (NoSuchMethodException | InstantiationException | IllegalAccessException | InvocationTargetException e) {
+                    logger.log(Level.SEVERE, "Failed to initialize transformer: " + type.name(), e);
+                }
+            }
         }
     }
 

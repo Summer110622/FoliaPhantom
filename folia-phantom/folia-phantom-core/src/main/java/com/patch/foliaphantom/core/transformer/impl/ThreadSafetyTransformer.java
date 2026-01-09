@@ -38,6 +38,7 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         private String className;
         private String pluginFieldName;
         private String pluginFieldDesc;
+        private boolean isSubclassOfJavaPlugin;
         private final String patcherPath;
 
         public ThreadSafetyVisitor(ClassVisitor cv, String patcherPath) {
@@ -48,13 +49,12 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         @Override
         public void visit(int version, int access, String name, String sig, String superName, String[] interfaces) {
             this.className = name;
+            this.isSubclassOfJavaPlugin = "org/bukkit/plugin/java/JavaPlugin".equals(superName);
             super.visit(version, access, name, sig, superName, interfaces);
         }
 
         @Override
         public FieldVisitor visitField(int access, String name, String desc, String sig, Object val) {
-            // Find the first field that is a Plugin or a subclass. This is our best-effort
-            // guess for the plugin instance.
             if (pluginFieldName == null && (desc.equals(PLUGIN_DESC) || desc.equals(JAVA_PLUGIN_DESC))) {
                 this.pluginFieldName = name;
                 this.pluginFieldDesc = desc;
@@ -65,10 +65,9 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            // Only transform methods if we have found a plugin field to reference.
-            // Without it, we cannot inject the required plugin instance.
-            if (pluginFieldName != null) {
-                return new ThreadSafetyMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc);
+            if (pluginFieldName != null || isSubclassOfJavaPlugin) {
+                return new ThreadSafetyMethodVisitor(mv, access, name, desc, patcherPath, className,
+                        pluginFieldName, pluginFieldDesc, isSubclassOfJavaPlugin);
             }
             return mv;
         }
@@ -79,14 +78,16 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         private final String pluginFieldOwner;
         private final String pluginFieldName;
         private final Type pluginFieldType;
+        private final boolean isPluginClass;
 
         protected ThreadSafetyMethodVisitor(MethodVisitor mv, int access, String name, String desc,
-                String patcherPath, String owner, String pfn, String pfd) {
+                String patcherPath, String owner, String pfn, String pfd, boolean isPlugin) {
             super(Opcodes.ASM9, mv, access, name, desc);
             this.patcherOwner = patcherPath;
             this.pluginFieldOwner = owner;
             this.pluginFieldName = pfn;
-            this.pluginFieldType = Type.getType(pfd);
+            this.pluginFieldType = pfd != null ? Type.getType(pfd) : null;
+            this.isPluginClass = isPlugin;
         }
 
         @Override
@@ -140,45 +141,54 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         return transform(2, "safeSetGameRule", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/GameRule;Ljava/lang/Object;)Z");
                     }
                     break;
+                case "org/bukkit/entity/Entity":
+                    switch (name) {
+                        case "remove":
+                            if ("()V".equals(desc)) return transform(0, "safeRemove", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)V");
+                            break;
+                        case "setVelocity":
+                            if ("(Lorg/bukkit/util/Vector;)V".equals(desc)) return transform(1, "safeSetVelocity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/util/Vector;)V");
+                            break;
+                        case "teleport":
+                            if ("(Lorg/bukkit/Location;)Z".equals(desc)) return transform(1, "safeTeleportEntity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/Location;)Z");
+                            break;
+                        case "setFireTicks":
+                            if ("(I)V".equals(desc)) return transform(1, "safeSetFireTicks", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;I)V");
+                            break;
+                        case "setCustomName":
+                            if ("(Ljava/lang/String;)V".equals(desc)) return transform(1, "safeSetCustomName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Ljava/lang/String;)V");
+                            break;
+                        case "setGravity":
+                            if ("(Z)V".equals(desc)) return transform(1, "safeSetGravity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Z)V");
+                            break;
+                    }
+                    break;
             }
             return false;
         }
 
-        /**
-         * Generic transformation logic.
-         * @param argCount Number of arguments on the stack (excluding the instance).
-         * @param newName The name of the static method in FoliaPatcher.
-         * @param newDesc The descriptor of the static method.
-         */
         private boolean transform(int argCount, String newName, String newDesc) {
             Type[] argTypes = Type.getArgumentTypes(newDesc);
-
-            // Store all original arguments (including the instance) into local variables.
-            // The instance ('world' or 'block') is at argTypes[1]. The actual args start at [2].
             int[] locals = new int[argCount + 1];
             for (int i = argCount; i >= 0; i--) {
-                // The new descriptor has Plugin as the first arg, so original args are offset by 1.
                 locals[i] = newLocal(argTypes[i + 1]);
                 storeLocal(locals[i]);
             }
-
-            // Stack is now empty.
-            // Push the plugin instance onto the stack.
             injectPluginInstance();
-
-            // Push the original arguments back onto the stack from locals.
             for (int i = 0; i <= argCount; i++) {
                 loadLocal(locals[i]);
             }
-
             super.visitMethodInsn(INVOKESTATIC, patcherOwner, newName, newDesc, false);
             return true;
         }
 
         private void injectPluginInstance() {
-            // Load `this` onto the stack, then get the plugin field from it.
-            loadThis();
-            getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, pluginFieldType);
+            if (isPluginClass) {
+                loadThis();
+            } else {
+                loadThis();
+                getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, pluginFieldType);
+            }
         }
     }
 }

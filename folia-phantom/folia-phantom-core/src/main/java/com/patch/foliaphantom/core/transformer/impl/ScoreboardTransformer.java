@@ -8,14 +8,11 @@ package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.AdviceAdapter;
 import java.util.logging.Logger;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -25,6 +22,7 @@ public class ScoreboardTransformer implements ClassTransformer {
     private static final String TEAM_OWNER = "org/bukkit/scoreboard/Team";
     private static final String OBJECTIVE_OWNER = "org/bukkit/scoreboard/Objective";
     private static final String SCORE_OWNER = "org/bukkit/scoreboard/Score";
+    private static final String PATCHER_CLASS = "FoliaPatcher";
 
     private final Logger logger;
     private final String relocatedPatcherPath;
@@ -32,7 +30,7 @@ public class ScoreboardTransformer implements ClassTransformer {
 
     public ScoreboardTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
-        this.relocatedPatcherPath = relocatedPatcherPath;
+        this.relocatedPatcherPath = relocatedPatcherPath + "/" + PATCHER_CLASS;
         this.methodMappings = new HashMap<>();
 
         // Scoreboard Mappings
@@ -41,6 +39,12 @@ public class ScoreboardTransformer implements ClassTransformer {
         scoreboardMap.put("registerNewTeam(Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;", new MethodMapping("safeRegisterNewTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;"));
         scoreboardMap.put("resetScores(Ljava/lang/String;)V", new MethodMapping("safeResetScores", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)V"));
         scoreboardMap.put("clearSlot(Lorg/bukkit/scoreboard/DisplaySlot;)V", new MethodMapping("safeClearSlot", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Lorg/bukkit/scoreboard/DisplaySlot;)V"));
+        scoreboardMap.put("getObjective(Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;", new MethodMapping("safeGetObjective", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;"));
+        scoreboardMap.put("getObjectivesByCriteria(Ljava/lang/String;)Ljava/util/Set;", new MethodMapping("safeGetObjectivesByCriteria", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Ljava/util/Set;"));
+        scoreboardMap.put("getObjectives()Ljava/util/Set;", new MethodMapping("safeGetObjectives", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;)Ljava/util/Set;"));
+        scoreboardMap.put("getEntries()Ljava/util/Set;", new MethodMapping("safeGetEntries", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;)Ljava/util/Set;"));
+        scoreboardMap.put("getTeam(Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;", new MethodMapping("safeGetTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;"));
+        scoreboardMap.put("getTeams()Ljava/util/Set;", new MethodMapping("safeGetTeams", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;)Ljava/util/Set;"));
         methodMappings.put(SCOREBOARD_OWNER, scoreboardMap);
 
         // Team Mappings
@@ -50,12 +54,16 @@ public class ScoreboardTransformer implements ClassTransformer {
         teamMap.put("setPrefix(Ljava/lang/String;)V", new MethodMapping("safeSetPrefix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("setSuffix(Ljava/lang/String;)V", new MethodMapping("safeSetSuffix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("unregister()V", new MethodMapping("safeUnregisterTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)V"));
+        teamMap.put("getEntries()Ljava/util/Set;", new MethodMapping("safeGetTeamEntries", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
+        teamMap.put("getPlayers()Ljava/util/Set;", new MethodMapping("safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
+        teamMap.put("getSize()I", new MethodMapping("safeGetSize", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)I"));
         methodMappings.put(TEAM_OWNER, teamMap);
 
         // Objective Mappings
         Map<String, MethodMapping> objectiveMap = new HashMap<>();
         objectiveMap.put("setDisplayName(Ljava/lang/String;)V", new MethodMapping("safeSetDisplayName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;Ljava/lang/String;)V"));
         objectiveMap.put("unregister()V", new MethodMapping("safeUnregisterObjective", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;)V"));
+        objectiveMap.put("getScore(Ljava/lang/String;)Lorg/bukkit/scoreboard/Score;", new MethodMapping("safeGetScore", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Objective;Ljava/lang/String;)Lorg/bukkit/scoreboard/Score;"));
         methodMappings.put(OBJECTIVE_OWNER, objectiveMap);
 
         // Score Mappings
@@ -80,8 +88,8 @@ public class ScoreboardTransformer implements ClassTransformer {
 
     private class ScoreboardClassVisitor extends ClassVisitor {
         private String className;
-        private String pluginFieldName = null;
-        private boolean isPluginClass = false;
+        private String outerClassName = null;
+        private boolean isPluginSubclass = false;
 
         public ScoreboardClassVisitor(ClassVisitor classVisitor) {
             super(Opcodes.ASM9, classVisitor);
@@ -89,25 +97,28 @@ public class ScoreboardTransformer implements ClassTransformer {
 
         @Override
         public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+            super.visit(version, access, name, signature, superName, interfaces);
             this.className = name;
             if ("org/bukkit/plugin/java/JavaPlugin".equals(superName)) {
-                isPluginClass = true;
+                this.isPluginSubclass = true;
             }
-            super.visit(version, access, name, signature, superName, interfaces);
         }
 
         @Override
-        public FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
-            if (pluginFieldName == null && "Lorg/bukkit/plugin/Plugin;".equals(descriptor)) {
-                pluginFieldName = name;
-            }
-            return super.visitField(access, name, descriptor, signature, value);
+        public void visitOuterClass(String owner, String name, String descriptor) {
+            super.visitOuterClass(owner, name, descriptor);
+            this.outerClassName = owner;
         }
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-            return new ScoreboardMethodVisitor(mv, access, name, descriptor);
+            boolean isStatic = (access & Opcodes.ACC_STATIC) != 0;
+            // Only apply to instance methods where we can get a 'this' or 'this$0' reference
+            if (!isStatic) {
+                 return new ScoreboardMethodVisitor(mv, access, name, descriptor);
+            }
+            return mv;
         }
 
         private class ScoreboardMethodVisitor extends AdviceAdapter {
@@ -126,39 +137,52 @@ public class ScoreboardTransformer implements ClassTransformer {
                 MethodMapping mapping = methodMappings.get(owner).get(methodKey);
 
                 if (mapping != null) {
-                    if (isPluginClass || pluginFieldName != null) {
+                    logger.finer("Found potential Scoreboard API call: " + owner + "#" + name);
+
+                    // Store arguments in local variables
+                    Type[] argTypes = Type.getArgumentTypes(descriptor);
+                    int[] locals = new int[argTypes.length];
+                    for (int i = argTypes.length - 1; i >= 0; i--) {
+                        locals[i] = newLocal(argTypes[i]);
+                        storeLocal(locals[i]);
+                    }
+
+                    // Store 'this' object (scoreboard, team, etc.) in a local variable
+                    int ownerLocal = newLocal(Type.getObjectType(owner));
+                    storeLocal(ownerLocal);
+
+                    // --- Plugin Instance Loading Logic ---
+                    boolean pluginFound = false;
+                    if (isPluginSubclass) {
+                        loadThis(); // 'this' is the plugin instance
+                        pluginFound = true;
+                    } else if (outerClassName != null) {
+                        loadThis();
+                        super.visitFieldInsn(GETFIELD, className, "this$0", "L" + outerClassName + ";");
+                        pluginFound = true;
+                    }
+
+                    if (pluginFound) {
                         logger.finer("Transforming " + owner.substring(owner.lastIndexOf('/') + 1) + " call '" + name + "' in " + className);
 
-                        // Store arguments in local variables
-                        Type[] argTypes = Type.getArgumentTypes(descriptor);
-                        int[] locals = new int[argTypes.length];
-                        for (int i = argTypes.length - 1; i >= 0; i--) {
-                            locals[i] = newLocal(argTypes[i]);
-                            storeLocal(locals[i]);
-                        }
-
-                        // Store 'this' object (scoreboard, team, etc.) in a local variable
-                        int ownerLocal = newLocal(Type.getObjectType(owner));
-                        storeLocal(ownerLocal);
-
-                        // Load the plugin instance
-                        if (isPluginClass) {
-                            loadThis();
-                        } else {
-                            loadThis();
-                            getField(Type.getObjectType(className), pluginFieldName, Type.getType("Lorg/bukkit/plugin/Plugin;"));
-                        }
-
-                        // Load the owner object and then the arguments
+                        // Load the owner object (scoreboard, team, etc.)
                         loadLocal(ownerLocal);
+
+                        // Load the original arguments back
                         for (int local : locals) {
                             loadLocal(local);
                         }
 
                         // Call the static FoliaPatcher method
                         mv.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath, mapping.newName, mapping.newDescriptor, false);
+
                     } else {
-                        logger.warning("Could not find Plugin field for Scoreboard transformation in " + className);
+                        logger.warning("Could not find Plugin instance for Scoreboard transformation in " + className + ". Aborting transform for this call.");
+                        // Abort, reload original arguments and call original method
+                        loadLocal(ownerLocal);
+                        for (int local : locals) {
+                            loadLocal(local);
+                        }
                         super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
                     }
                 } else {

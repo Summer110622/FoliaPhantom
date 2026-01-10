@@ -158,6 +158,10 @@ public class PluginPatcher {
      * @throws IOException If an I/O error occurs during patching
      */
     public void patchPlugin(File originalJar, File outputJar) throws IOException {
+        patchPlugin(originalJar, outputJar, false);
+    }
+
+    public void patchPlugin(File originalJar, File outputJar, boolean aggressiveEventOptimization) throws IOException {
         classesScanned.set(0);
         classesTransformed.set(0);
         classesSkipped.set(0);
@@ -178,7 +182,7 @@ public class PluginPatcher {
 
             // Initialize transformers with the relocated path
             this.transformers = new ArrayList<>();
-            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
+            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath, aggressiveEventOptimization));
             transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
             transformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
@@ -190,6 +194,9 @@ public class PluginPatcher {
             transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
+            if (aggressiveEventOptimization) {
+                logger.info("Aggressive event optimization ENABLED.");
+            }
 
             createPatchedJar(originalJar.toPath(), outputJar.toPath());
             long duration = System.currentTimeMillis() - startTime;

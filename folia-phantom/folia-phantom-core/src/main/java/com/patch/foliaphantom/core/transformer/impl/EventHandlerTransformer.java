@@ -23,10 +23,12 @@ public class EventHandlerTransformer implements ClassTransformer {
     private static final String CANCELLABLE_INTERNAL_NAME = "org/bukkit/event/Cancellable";
     private final Logger logger;
     private final String relocatedPatcherPath;
+    private final boolean aggressiveOptimizationEnabled;
 
-    public EventHandlerTransformer(Logger logger, String relocatedPatcherPath) {
+    public EventHandlerTransformer(Logger logger, String relocatedPatcherPath, boolean aggressiveOptimizationEnabled) {
         this.logger = logger;
         this.relocatedPatcherPath = relocatedPatcherPath;
+        this.aggressiveOptimizationEnabled = aggressiveOptimizationEnabled;
     }
 
     @Override
@@ -65,7 +67,7 @@ public class EventHandlerTransformer implements ClassTransformer {
 
         @Override
         protected void onMethodEnter() {
-            if (isEventHandler && !isMonitorPriority) {
+            if (aggressiveOptimizationEnabled && isEventHandler && !isMonitorPriority) {
                 Type[] args = Type.getArgumentTypes(methodDesc);
                 if (args.length == 1) {
                     Label skipReturnLabel = new Label();
@@ -82,7 +84,7 @@ public class EventHandlerTransformer implements ClassTransformer {
                     mv.visitInsn(RETURN);
 
                     mv.visitLabel(skipReturnLabel);
-                    logger.fine("Injected cancellation check into: " + getName());
+                    logger.fine("Aggressively optimized (cancellation check) event handler: " + getName());
                 }
             }
         }

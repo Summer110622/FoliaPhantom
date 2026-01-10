@@ -19,7 +19,20 @@ public class CLI {
         setupLogger();
         printBanner();
 
-        File inputFile = getInputFile(args);
+        boolean failFast = false;
+        String inputPath = null;
+
+        for (String arg : args) {
+            if ("--fail-fast".equalsIgnoreCase(arg)) {
+                failFast = true;
+            } else if (inputPath == null) {
+                inputPath = arg;
+            } else {
+                LOGGER.warning("Ignoring additional argument: " + arg);
+            }
+        }
+
+        File inputFile = getInputFile(inputPath);
         if (inputFile == null) {
             return;
         }
@@ -31,9 +44,12 @@ public class CLI {
         }
 
         LOGGER.info("Output directory set to: " + outputDir.getAbsolutePath());
+        if (failFast) {
+            LOGGER.info("Fail-fast mode is enabled. Timeouts will throw exceptions.");
+        }
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);
@@ -65,9 +81,9 @@ public class CLI {
         System.out.println("======================================================================");
     }
 
-    private static File getInputFile(String[] args) {
+    private static File getInputFile(String pathArg) {
         File inputFile;
-        if (args.length == 0) {
+        if (pathArg == null) {
             try (Scanner scanner = new Scanner(System.in)) {
                 System.out.print(">> Enter the path to a JAR file or a directory of JARs: ");
                 String path = scanner.nextLine();
@@ -78,7 +94,7 @@ public class CLI {
                 inputFile = new File(path);
             }
         } else {
-            inputFile = new File(args[0]);
+            inputFile = new File(pathArg);
         }
 
         if (!inputFile.exists()) {

@@ -26,6 +26,7 @@ import com.patch.foliaphantom.core.transformer.impl.EventCallTransformer;
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
+import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.SimpleRemapper;
 
@@ -92,6 +93,9 @@ public class PluginPatcher {
     /** Logger instance for this patcher */
     private final Logger logger;
 
+    /** Whether to throw an exception on async timeout */
+    private final boolean failFastOnTimeout;
+
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
@@ -124,9 +128,20 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
+        this.failFastOnTimeout = failFastOnTimeout;
+    }
+
+    /**
+     * Creates a new PluginPatcher instance with the specified logger and progress listener.
+     *
+     * @param logger           Logger for diagnostics
+     * @param progressListener Listener for real-time progress updates
+     */
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
+        this(logger, progressListener, false);
     }
 
     /**
@@ -135,7 +150,7 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null);
+        this(logger, null, false);
     }
 
     /**
@@ -319,6 +334,28 @@ public class PluginPatcher {
                 ClassReader cr = new ClassReader(is);
                 ClassWriter cw = new ClassWriter(0);
                 ClassVisitor cv = new ClassRemapper(cw, remapper);
+
+                // Inject the FAIL_FAST field only into the main FoliaPatcher class
+                if (originalClassPath.equals("com/patch/foliaphantom/core/patcher/FoliaPatcher.class")) {
+                    final ClassVisitor nextVisitor = cv;
+                    cv = new ClassVisitor(org.objectweb.asm.Opcodes.ASM9, nextVisitor) {
+                        @Override
+                        public void visitEnd() {
+                            FieldVisitor fv = super.visitField(
+                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                "FAIL_FAST",
+                                "Z",
+                                null,
+                                failFastOnTimeout ? 1 : 0
+                            );
+                            if (fv != null) {
+                                fv.visitEnd();
+                            }
+                            super.visitEnd();
+                        }
+                    };
+                }
+
                 cr.accept(cv, ClassReader.EXPAND_FRAMES);
 
                 Files.write(targetPath, cw.toByteArray());

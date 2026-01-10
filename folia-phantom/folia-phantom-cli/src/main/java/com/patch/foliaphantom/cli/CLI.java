@@ -5,6 +5,9 @@ import com.patch.foliaphantom.core.progress.PatchProgressListener;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
 import java.util.Scanner;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
@@ -19,7 +22,15 @@ public class CLI {
         setupLogger();
         printBanner();
 
-        File inputFile = getInputFile(args);
+        List<String> argsList = new ArrayList<>(Arrays.asList(args));
+        boolean aggressiveOpt = argsList.remove("--aggressive-event-optimization") || argsList.remove("-a");
+
+        if (aggressiveOpt) {
+            LOGGER.info("Aggressive event optimization has been enabled via command-line flag.");
+        }
+
+        String[] remainingArgs = argsList.toArray(new String[0]);
+        File inputFile = getInputFile(remainingArgs);
         if (inputFile == null) {
             return;
         }
@@ -36,9 +47,9 @@ public class CLI {
         PluginPatcher patcher = new PluginPatcher(LOGGER, listener);
 
         if (inputFile.isDirectory()) {
-            patchDirectory(patcher, inputFile, outputDir);
+            patchDirectory(patcher, inputFile, outputDir, aggressiveOpt);
         } else if (inputFile.getName().toLowerCase().endsWith(".jar")) {
-            patchJar(patcher, inputFile, outputDir);
+            patchJar(patcher, inputFile, outputDir, aggressiveOpt);
         } else {
             LOGGER.severe("Error: The provided file is not a JAR file.");
         }
@@ -88,7 +99,7 @@ public class CLI {
         return inputFile;
     }
 
-    private static void patchDirectory(PluginPatcher patcher, File inputDir, File outputDir) {
+    private static void patchDirectory(PluginPatcher patcher, File inputDir, File outputDir, boolean aggressiveOpt) {
         File[] jarsToPatch = inputDir.listFiles((dir, name) -> name.toLowerCase().endsWith(".jar"));
 
         if (jarsToPatch == null) {
@@ -104,14 +115,14 @@ public class CLI {
         LOGGER.info("Found " + jarsToPatch.length + " JAR file(s) to patch in the directory.");
         int successCount = 0;
         for (File inputJar : jarsToPatch) {
-            if (patchJar(patcher, inputJar, outputDir)) {
+            if (patchJar(patcher, inputJar, outputDir, aggressiveOpt)) {
                 successCount++;
             }
         }
         LOGGER.info("Successfully patched " + successCount + " out of " + jarsToPatch.length + " JAR file(s).");
     }
 
-    private static boolean patchJar(PluginPatcher patcher, File inputJar, File outputDir) {
+    private static boolean patchJar(PluginPatcher patcher, File inputJar, File outputDir, boolean aggressiveOpt) {
         try {
             String pluginName = PluginPatcher.getPluginNameFromJar(inputJar);
             if (pluginName == null) {
@@ -123,7 +134,7 @@ public class CLI {
             }
 
             File outputJar = new File(outputDir, "patched-" + inputJar.getName());
-            patcher.patchPlugin(inputJar, outputJar);
+            patcher.patchPlugin(inputJar, outputJar, aggressiveOpt);
             return true;
         } catch (IOException e) {
             LOGGER.log(Level.SEVERE, "An error occurred while patching " + inputJar.getName() + ":", e);

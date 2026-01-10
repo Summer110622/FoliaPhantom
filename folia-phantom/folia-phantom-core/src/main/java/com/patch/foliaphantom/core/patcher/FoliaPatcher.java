@@ -785,6 +785,272 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- Thread-Safe Scoreboard READ Operations ---
+
+    public static org.bukkit.scoreboard.Objective safeGetObjective(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String name) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getObjective(name);
+        }
+        CompletableFuture<org.bukkit.scoreboard.Objective> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getObjective(name));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objective '" + name + "'", e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get objective '" + name + "'", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting objective '" + name + "'", e);
+            return null;
+        }
+    }
+
+    public static java.util.Set<org.bukkit.scoreboard.Objective> safeGetObjectivesByCriteria(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String criteria) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getObjectivesByCriteria(criteria);
+        }
+        CompletableFuture<java.util.Set<org.bukkit.scoreboard.Objective>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getObjectivesByCriteria(criteria));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objectives by criteria '" + criteria + "'", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get objectives by criteria '" + criteria + "'", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting objectives by criteria '" + criteria + "'", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    public static java.util.Set<org.bukkit.scoreboard.Objective> safeGetObjectives(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getObjectives();
+        }
+        CompletableFuture<java.util.Set<org.bukkit.scoreboard.Objective>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getObjectives());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objectives", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get objectives", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting objectives", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    public static java.util.Set<String> safeGetEntries(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getEntries();
+        }
+        CompletableFuture<java.util.Set<String>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getEntries());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get scoreboard entries", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get scoreboard entries", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting scoreboard entries", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    public static org.bukkit.scoreboard.Team safeGetTeam(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String teamName) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getTeam(teamName);
+        }
+        CompletableFuture<org.bukkit.scoreboard.Team> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getTeam(teamName));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team '" + teamName + "'", e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get team '" + teamName + "'", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting team '" + teamName + "'", e);
+            return null;
+        }
+    }
+
+    public static java.util.Set<org.bukkit.scoreboard.Team> safeGetTeams(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard) {
+        if (Bukkit.isPrimaryThread()) {
+            return scoreboard.getTeams();
+        }
+        CompletableFuture<java.util.Set<org.bukkit.scoreboard.Team>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(scoreboard.getTeams());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get teams", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get teams", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting teams", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    // --- Thread-Safe Objective READ Operations ---
+
+    public static org.bukkit.scoreboard.Score safeGetScore(Plugin plugin, org.bukkit.scoreboard.Objective objective, String entry) {
+        if (Bukkit.isPrimaryThread()) {
+            return objective.getScore(entry);
+        }
+        CompletableFuture<org.bukkit.scoreboard.Score> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(objective.getScore(entry));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get score for entry '" + entry + "'", e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get score for entry '" + entry + "'", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting score for entry '" + entry + "'", e);
+            return null;
+        }
+    }
+
+    // --- Thread-Safe Team READ Operations ---
+
+    public static java.util.Set<String> safeGetTeamEntries(Plugin plugin, org.bukkit.scoreboard.Team team) {
+        if (Bukkit.isPrimaryThread()) {
+            return team.getEntries();
+        }
+        CompletableFuture<java.util.Set<String>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(team.getEntries());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team entries", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get team entries", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting team entries", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    public static java.util.Set<org.bukkit.OfflinePlayer> safeGetPlayers(Plugin plugin, org.bukkit.scoreboard.Team team) {
+        if (Bukkit.isPrimaryThread()) {
+            return team.getPlayers();
+        }
+        CompletableFuture<java.util.Set<org.bukkit.OfflinePlayer>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(team.getPlayers());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team players", e);
+            return java.util.Collections.emptySet();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get team players", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting team players", e);
+            return java.util.Collections.emptySet();
+        }
+    }
+
+    public static int safeGetSize(Plugin plugin, org.bukkit.scoreboard.Team team) {
+        if (Bukkit.isPrimaryThread()) {
+            return team.getSize();
+        }
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(team.getSize());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(100, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team size", e);
+            return 0;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get team size", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting team size", e);
+            return 0;
+        }
+    }
+
     // --- Thread-Safe Inventory Operations ---
 
     /**

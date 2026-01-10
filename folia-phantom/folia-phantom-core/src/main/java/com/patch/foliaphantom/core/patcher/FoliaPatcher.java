@@ -10,6 +10,7 @@
  */
 package com.patch.foliaphantom.core.patcher;
 
+import com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Effect;
@@ -54,6 +55,12 @@ import java.util.logging.Logger;
  * </p>
  */
 public final class FoliaPatcher {
+    /**
+     * If true, timeout exceptions will be thrown rather than logged.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final boolean FAIL_FAST = false;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -378,7 +385,13 @@ public final class FoliaPatcher {
             try {
                 // Block for a short time to prevent server hangs
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to spawn entity of type " + clazz.getSimpleName(), e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
                 return null;
             }
@@ -419,7 +432,13 @@ public final class FoliaPatcher {
             try {
                 // We use teleportAsync and wait for it to complete.
                 return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to teleport player " + player.getName(), e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
                 return false;
             }
@@ -443,7 +462,13 @@ public final class FoliaPatcher {
             });
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to drop item", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
                 return null;
             }
@@ -467,7 +492,13 @@ public final class FoliaPatcher {
             });
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to drop item naturally", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
                 return null;
             }
@@ -485,7 +516,13 @@ public final class FoliaPatcher {
             Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.createExplosion(location, power, setFire, breakBlocks)));
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to create explosion", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
                 return false;
             }
@@ -531,7 +568,13 @@ public final class FoliaPatcher {
             });
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to strike lightning", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
                 return null;
             }
@@ -549,7 +592,13 @@ public final class FoliaPatcher {
             Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.generateTree(location, type)));
             try {
                 return future.get(500, TimeUnit.MILLISECONDS); // Tree gen can be slow
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to generate tree", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
                 return false;
             }
@@ -568,7 +617,13 @@ public final class FoliaPatcher {
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.setGameRule(rule, value)));
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to set game rule " + rule.getName(), e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
                 return false;
             }
@@ -591,7 +646,13 @@ public final class FoliaPatcher {
             });
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new objective '" + name + "'", e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to register new objective '" + name + "'", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new objective '" + name + "'", e);
                 return null;
             }
@@ -612,7 +673,13 @@ public final class FoliaPatcher {
             });
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new team '" + name + "'", e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to register new team '" + name + "'", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new team '" + name + "'", e);
                 return null;
             }
@@ -653,7 +720,13 @@ public final class FoliaPatcher {
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(team.removeEntry(entry)));
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to remove team entry '" + entry + "'", e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to remove team entry '" + entry + "'", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to remove team entry '" + entry + "'", e);
                 return false;
             }
@@ -759,7 +832,18 @@ public final class FoliaPatcher {
 
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to add item to inventory", e);
+                // On non-timeout failure, return original items as per Bukkit API contract
+                java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remainingItems = new java.util.HashMap<>();
+                for (int i = 0; i < items.length; i++) {
+                    remainingItems.put(i, items[i]);
+                }
+                return remainingItems;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to add item to inventory", e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to add item to inventory", e);
                 java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> remainingItems = new java.util.HashMap<>();
                 for (int i = 0; i < items.length; i++) {
@@ -876,7 +960,13 @@ public final class FoliaPatcher {
             }, null);
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to open inventory for player " + player.getName(), e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
                 return null;
             }
@@ -923,7 +1013,13 @@ public final class FoliaPatcher {
             }, null);
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to teleport entity " + entity.getUniqueId(), e);
+                }
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
                 return false;
             }
@@ -1040,7 +1136,12 @@ public final class FoliaPatcher {
             // Block until the event is processed to maintain original execution flow.
             // A timeout is used to prevent the server from hanging on a problematic event handler.
             future.get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to process event " + event.getEventName() + " synchronously.", e);
+            }
             LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
         }
     }

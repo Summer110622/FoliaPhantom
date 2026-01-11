@@ -21,6 +21,7 @@ public class CLI {
 
         boolean failFast = false;
         boolean aggressiveEventOptimization = false;
+        boolean fireAndForget = false;
         String inputPath = null;
 
         for (String arg : args) {
@@ -28,6 +29,8 @@ public class CLI {
                 failFast = true;
             } else if ("--aggressive-event-optimization".equalsIgnoreCase(arg)) {
                 aggressiveEventOptimization = true;
+            } else if ("--fire-and-forget".equalsIgnoreCase(arg)) {
+                fireAndForget = true;
             } else if (inputPath == null) {
                 inputPath = arg;
             } else {
@@ -53,9 +56,12 @@ public class CLI {
         if (aggressiveEventOptimization) {
             LOGGER.info("Aggressive event optimization is enabled. Async event calls will not be synchronized.");
         }
+        if (fireAndForget) {
+            LOGGER.warning("!!! Fire-and-forget mode is enabled. This is a high-risk optimization and may break plugins.");
+        }
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);

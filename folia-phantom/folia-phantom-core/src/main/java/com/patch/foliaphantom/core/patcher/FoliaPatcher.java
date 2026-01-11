@@ -68,6 +68,14 @@ public final class FoliaPatcher {
      */
     public static final boolean AGGRESSIVE_EVENT_OPTIMIZATION = false;
 
+    /**
+     * If true, API calls that return a value will not block and wait for completion,
+     * returning a default value (e.g., null, false) instead. This maximizes performance
+     * but is a breaking change for plugins that rely on the return value.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final boolean FIRE_AND_FORGET = false;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -389,6 +397,11 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
+
             try {
                 // Block for a short time to prevent server hangs
                 return future.get(100, TimeUnit.MILLISECONDS);
@@ -436,6 +449,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return player.teleport(location);
         } else {
+            if (FIRE_AND_FORGET) {
+                player.teleportAsync(location);
+                return true;
+            }
             try {
                 // We use teleportAsync and wait for it to complete.
                 return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
@@ -467,6 +484,9 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
@@ -497,6 +517,9 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
@@ -519,6 +542,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return world.createExplosion(location, power, setFire, breakBlocks);
         } else {
+            if (FIRE_AND_FORGET) {
+                Bukkit.getRegionScheduler().run(plugin, location, task -> world.createExplosion(location, power, setFire, breakBlocks));
+                return true;
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.createExplosion(location, power, setFire, breakBlocks)));
             try {
@@ -573,6 +600,9 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
@@ -595,6 +625,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return world.generateTree(location, type);
         } else {
+            if (FIRE_AND_FORGET) {
+                Bukkit.getRegionScheduler().run(plugin, location, task -> world.generateTree(location, type));
+                return true;
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.generateTree(location, type)));
             try {
@@ -619,6 +653,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return world.setGameRule(rule, value);
         } else {
+            if (FIRE_AND_FORGET) {
+                Bukkit.getGlobalRegionScheduler().run(plugin, task -> world.setGameRule(rule, value));
+                return true;
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             // Game rules are global, so use the global scheduler
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.setGameRule(rule, value)));
@@ -651,6 +689,9 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
@@ -678,6 +719,9 @@ public final class FoliaPatcher {
                     future.completeExceptionally(e);
                 }
             });
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
             try {
                 return future.get(100, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
@@ -723,6 +767,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return team.removeEntry(entry);
         } else {
+            if (FIRE_AND_FORGET) {
+                Bukkit.getGlobalRegionScheduler().run(plugin, task -> team.removeEntry(entry));
+                return false;
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(team.removeEntry(entry)));
             try {
@@ -798,6 +846,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getObjective(name);
         }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
         CompletableFuture<org.bukkit.scoreboard.Objective> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -823,6 +874,9 @@ public final class FoliaPatcher {
     public static java.util.Set<org.bukkit.scoreboard.Objective> safeGetObjectivesByCriteria(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard, String criteria) {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getObjectivesByCriteria(criteria);
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
         }
         CompletableFuture<java.util.Set<org.bukkit.scoreboard.Objective>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
@@ -850,6 +904,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getObjectives();
         }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
+        }
         CompletableFuture<java.util.Set<org.bukkit.scoreboard.Objective>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -875,6 +932,9 @@ public final class FoliaPatcher {
     public static java.util.Set<String> safeGetEntries(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard) {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getEntries();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
         }
         CompletableFuture<java.util.Set<String>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
@@ -902,6 +962,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getTeam(teamName);
         }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
         CompletableFuture<org.bukkit.scoreboard.Team> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -927,6 +990,9 @@ public final class FoliaPatcher {
     public static java.util.Set<org.bukkit.scoreboard.Team> safeGetTeams(Plugin plugin, org.bukkit.scoreboard.Scoreboard scoreboard) {
         if (Bukkit.isPrimaryThread()) {
             return scoreboard.getTeams();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
         }
         CompletableFuture<java.util.Set<org.bukkit.scoreboard.Team>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
@@ -956,6 +1022,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return objective.getScore(entry);
         }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
         CompletableFuture<org.bukkit.scoreboard.Score> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -984,6 +1053,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return team.getEntries();
         }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
+        }
         CompletableFuture<java.util.Set<String>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -1010,6 +1082,9 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return team.getPlayers();
         }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptySet();
+        }
         CompletableFuture<java.util.Set<org.bukkit.OfflinePlayer>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
@@ -1035,6 +1110,9 @@ public final class FoliaPatcher {
     public static int safeGetSize(Plugin plugin, org.bukkit.scoreboard.Team team) {
         if (Bukkit.isPrimaryThread()) {
             return team.getSize();
+        }
+        if (FIRE_AND_FORGET) {
+            return 0;
         }
         CompletableFuture<Integer> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
@@ -1086,8 +1164,24 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return inventory.addItem(items);
         } else {
-            CompletableFuture<java.util.HashMap<Integer, org.bukkit.inventory.ItemStack>> future = new CompletableFuture<>();
             java.util.function.Consumer<ScheduledTask> task = ignored -> {
+                inventory.addItem(items);
+            };
+
+            org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
+            Location loc = (holder instanceof Entity) ? ((Entity) holder).getLocation() : inventory.getLocation();
+
+            if (FIRE_AND_FORGET) {
+                if (loc != null) {
+                    Bukkit.getRegionScheduler().run(plugin, loc, task);
+                } else {
+                    Bukkit.getGlobalRegionScheduler().run(plugin, task);
+                }
+                return new java.util.HashMap<>();
+            }
+
+            CompletableFuture<java.util.HashMap<Integer, org.bukkit.inventory.ItemStack>> future = new CompletableFuture<>();
+            java.util.function.Consumer<ScheduledTask> futureTask = ignored -> {
                 try {
                     future.complete(inventory.addItem(items));
                 } catch (Exception e) {
@@ -1095,12 +1189,10 @@ public final class FoliaPatcher {
                 }
             };
 
-            org.bukkit.inventory.InventoryHolder holder = inventory.getHolder();
-            Location loc = (holder instanceof Entity) ? ((Entity) holder).getLocation() : inventory.getLocation();
             if (loc != null) {
-                Bukkit.getRegionScheduler().run(plugin, loc, task);
+                Bukkit.getRegionScheduler().run(plugin, loc, futureTask);
             } else {
-                Bukkit.getGlobalRegionScheduler().run(plugin, task);
+                Bukkit.getGlobalRegionScheduler().run(plugin, futureTask);
             }
 
             try {
@@ -1223,6 +1315,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return player.openInventory(inventory);
         } else {
+            if (FIRE_AND_FORGET) {
+                player.getScheduler().run(plugin, task -> player.openInventory(inventory), null);
+                return null;
+            }
             CompletableFuture<org.bukkit.inventory.InventoryView> future = new CompletableFuture<>();
             player.getScheduler().run(plugin, task -> {
                 try {
@@ -1276,6 +1372,10 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             return entity.teleport(location);
         } else {
+            if (FIRE_AND_FORGET) {
+                entity.getScheduler().run(plugin, task -> entity.teleport(location), null);
+                return true;
+            }
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             entity.getScheduler().run(plugin, task -> {
                 try {

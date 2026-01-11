@@ -96,6 +96,9 @@ public class PluginPatcher {
     /** Whether to throw an exception on async timeout */
     private final boolean failFastOnTimeout;
 
+    /** Whether to enable aggressive event optimization */
+    private final boolean aggressiveEventOptimization;
+
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
@@ -128,10 +131,15 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
+        this.aggressiveEventOptimization = aggressiveEventOptimization;
+    }
+
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
+        this(logger, progressListener, failFastOnTimeout, false);
     }
 
     /**
@@ -141,7 +149,7 @@ public class PluginPatcher {
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this(logger, progressListener, false);
+        this(logger, progressListener, false, false);
     }
 
     /**
@@ -150,7 +158,7 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null, false);
+        this(logger, null, false, false);
     }
 
     /**
@@ -341,6 +349,7 @@ public class PluginPatcher {
                     cv = new ClassVisitor(org.objectweb.asm.Opcodes.ASM9, nextVisitor) {
                         @Override
                         public void visitEnd() {
+                            // Inject FAIL_FAST field
                             FieldVisitor fv = super.visitField(
                                 org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
                                 "FAIL_FAST",
@@ -351,6 +360,19 @@ public class PluginPatcher {
                             if (fv != null) {
                                 fv.visitEnd();
                             }
+
+                            // Inject AGGRESSIVE_EVENT_OPTIMIZATION field
+                            fv = super.visitField(
+                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                "AGGRESSIVE_EVENT_OPTIMIZATION",
+                                "Z",
+                                null,
+                                aggressiveEventOptimization ? 1 : 0
+                            );
+                            if (fv != null) {
+                                fv.visitEnd();
+                            }
+
                             super.visitEnd();
                         }
                     };

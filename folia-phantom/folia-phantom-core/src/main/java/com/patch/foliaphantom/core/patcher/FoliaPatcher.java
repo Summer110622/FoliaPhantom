@@ -61,6 +61,13 @@ public final class FoliaPatcher {
      */
     public static final boolean FAIL_FAST = false;
 
+    /**
+     * If true, event calls from async threads will not block and wait for completion.
+     * This improves performance but may break plugins that expect synchronous event handling.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final boolean AGGRESSIVE_EVENT_OPTIMIZATION = false;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -1398,17 +1405,19 @@ public final class FoliaPatcher {
             Bukkit.getGlobalRegionScheduler().run(plugin, t -> task.run());
         }
 
-        try {
-            // Block until the event is processed to maintain original execution flow.
-            // A timeout is used to prevent the server from hanging on a problematic event handler.
-            future.get(5, TimeUnit.SECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to process event " + event.getEventName() + " synchronously.", e);
+        // If aggressive optimization is disabled, block until the event is processed
+        // to maintain the original execution flow. A timeout is used to prevent hangs.
+        if (!AGGRESSIVE_EVENT_OPTIMIZATION) {
+            try {
+                future.get(5, TimeUnit.SECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to process event " + event.getEventName() + " synchronously.", e);
+                }
+                LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
             }
-            LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
         }
     }
 }

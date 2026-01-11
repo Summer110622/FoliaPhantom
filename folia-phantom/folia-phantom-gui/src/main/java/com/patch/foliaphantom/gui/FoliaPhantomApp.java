@@ -51,6 +51,9 @@ public class FoliaPhantomApp extends Application {
     private Button patchButton;
     private Button openDirButton;
     private CheckBox verboseLoggingCheckbox;
+    private CheckBox failFastCheckbox;
+    private CheckBox aggressiveEventOptimizationCheckbox;
+    private CheckBox fireAndForgetCheckbox;
 
     // State
     private final List<File> selectedFiles = new ArrayList<>();
@@ -201,10 +204,23 @@ public class FoliaPhantomApp extends Application {
         verboseLoggingCheckbox.getStyleClass().add("custom-checkbox");
         controls.add(verboseLoggingCheckbox, 0, 1);
 
+        failFastCheckbox = new CheckBox("Fail-Fast Mode");
+        failFastCheckbox.getStyleClass().add("custom-checkbox");
+        controls.add(failFastCheckbox, 0, 2);
+
+        aggressiveEventOptimizationCheckbox = new CheckBox("Aggressive Event Opt.");
+        aggressiveEventOptimizationCheckbox.getStyleClass().add("custom-checkbox");
+        controls.add(aggressiveEventOptimizationCheckbox, 0, 3);
+
+        fireAndForgetCheckbox = new CheckBox("Fire-and-Forget Mode");
+        fireAndForgetCheckbox.getStyleClass().add("custom-checkbox");
+        controls.add(fireAndForgetCheckbox, 0, 4);
+
         Button outDirBtn = new Button("Change Output Folder");
         outDirBtn.getStyleClass().add("glass-button-sm");
         outDirBtn.setOnAction(e -> chooseOutputDir(stage));
-        controls.add(outDirBtn, 1, 1);
+        controls.add(outDirBtn, 1, 1, 1, 4); // Span across rows
+        GridPane.setValignment(outDirBtn, javafx.geometry.VPos.TOP);
 
         // Progress Card
         VBox progressCard = new VBox(10);
@@ -295,7 +311,14 @@ public class FoliaPhantomApp extends Application {
                 try {
                     File output = new File(outputDirectory != null ? outputDirectory : file.getParentFile(),
                             file.getName().replace(".jar", "-patched.jar"));
-                    new PluginPatcher(patcherLogger).patchPlugin(file, output);
+
+                    boolean failFast = failFastCheckbox.isSelected();
+                    boolean aggressiveOpt = aggressiveEventOptimizationCheckbox.isSelected();
+                    boolean fireAndForget = fireAndForgetCheckbox.isSelected();
+
+                    PluginPatcher patcher = new PluginPatcher(patcherLogger, null, failFast, aggressiveOpt, fireAndForget);
+                    patcher.patchPlugin(file, output);
+
                     successCount.incrementAndGet();
                     Platform.runLater(() -> logSuccess("Done: " + file.getName()));
                 } catch (Exception e) {

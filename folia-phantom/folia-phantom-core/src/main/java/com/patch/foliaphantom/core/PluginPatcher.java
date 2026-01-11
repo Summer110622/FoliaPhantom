@@ -99,6 +99,9 @@ public class PluginPatcher {
     /** Whether to enable aggressive event optimization */
     private final boolean aggressiveEventOptimization;
 
+    /** Whether to enable fire-and-forget mode for performance */
+    private final boolean fireAndForget;
+
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
@@ -131,15 +134,20 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
         this.aggressiveEventOptimization = aggressiveEventOptimization;
+        this.fireAndForget = fireAndForget;
+    }
+
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
-        this(logger, progressListener, failFastOnTimeout, false);
+        this(logger, progressListener, failFastOnTimeout, false, false);
     }
 
     /**
@@ -149,7 +157,7 @@ public class PluginPatcher {
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this(logger, progressListener, false, false);
+        this(logger, progressListener, false, false, false);
     }
 
     /**
@@ -158,7 +166,7 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null, false, false);
+        this(logger, null, false, false, false);
     }
 
     /**
@@ -368,6 +376,18 @@ public class PluginPatcher {
                                 "Z",
                                 null,
                                 aggressiveEventOptimization ? 1 : 0
+                            );
+                            if (fv != null) {
+                                fv.visitEnd();
+                            }
+
+                            // Inject FIRE_AND_FORGET field
+                            fv = super.visitField(
+                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                "FIRE_AND_FORGET",
+                                "Z",
+                                null,
+                                fireAndForget ? 1 : 0
                             );
                             if (fv != null) {
                                 fv.visitEnd();

@@ -51,6 +51,8 @@ public class FoliaPhantomApp extends Application {
     private Button patchButton;
     private Button openDirButton;
     private CheckBox verboseLoggingCheckbox;
+    private CheckBox failFastCheckBox;
+    private CheckBox fireAndForgetCheckBox;
 
     // State
     private final List<File> selectedFiles = new ArrayList<>();
@@ -201,6 +203,14 @@ public class FoliaPhantomApp extends Application {
         verboseLoggingCheckbox.getStyleClass().add("custom-checkbox");
         controls.add(verboseLoggingCheckbox, 0, 1);
 
+        failFastCheckBox = new CheckBox("Fail-fast on timeout");
+        failFastCheckBox.getStyleClass().add("custom-checkbox");
+        controls.add(failFastCheckBox, 0, 2);
+
+        fireAndForgetCheckBox = new CheckBox("Fire-and-forget events");
+        fireAndForgetCheckBox.getStyleClass().add("custom-checkbox");
+        controls.add(fireAndForgetCheckBox, 1, 2);
+
         Button outDirBtn = new Button("Change Output Folder");
         outDirBtn.getStyleClass().add("glass-button-sm");
         outDirBtn.setOnAction(e -> chooseOutputDir(stage));
@@ -295,7 +305,7 @@ public class FoliaPhantomApp extends Application {
                 try {
                     File output = new File(outputDirectory != null ? outputDirectory : file.getParentFile(),
                             file.getName().replace(".jar", "-patched.jar"));
-                    new PluginPatcher(patcherLogger).patchPlugin(file, output);
+                    new PluginPatcher(patcherLogger, null, failFastCheckBox.isSelected(), fireAndForgetCheckBox.isSelected()).patchPlugin(file, output);
                     successCount.incrementAndGet();
                     Platform.runLater(() -> logSuccess("Done: " + file.getName()));
                 } catch (Exception e) {

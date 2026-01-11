@@ -66,7 +66,7 @@ public final class FoliaPatcher {
      * This improves performance but may break plugins that expect synchronous event handling.
      * This field is set dynamically at patch time via ASM.
      */
-    public static final boolean AGGRESSIVE_EVENT_OPTIMIZATION = false;
+    public static final boolean FIRE_AND_FORGET = false;
 
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
@@ -1407,7 +1407,7 @@ public final class FoliaPatcher {
 
         // If aggressive optimization is disabled, block until the event is processed
         // to maintain the original execution flow. A timeout is used to prevent hangs.
-        if (!AGGRESSIVE_EVENT_OPTIMIZATION) {
+        if (!FIRE_AND_FORGET) {
             try {
                 future.get(5, TimeUnit.SECONDS);
             } catch (InterruptedException | ExecutionException e) {

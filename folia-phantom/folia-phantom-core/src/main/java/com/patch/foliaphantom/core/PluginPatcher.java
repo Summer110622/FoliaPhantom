@@ -96,8 +96,8 @@ public class PluginPatcher {
     /** Whether to throw an exception on async timeout */
     private final boolean failFastOnTimeout;
 
-    /** Whether to enable aggressive event optimization */
-    private final boolean aggressiveEventOptimization;
+    /** Whether to enable fire-and-forget event handling */
+    private final boolean fireAndForget;
 
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
@@ -131,11 +131,11 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean fireAndForget) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
-        this.aggressiveEventOptimization = aggressiveEventOptimization;
+        this.fireAndForget = fireAndForget;
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
@@ -361,13 +361,13 @@ public class PluginPatcher {
                                 fv.visitEnd();
                             }
 
-                            // Inject AGGRESSIVE_EVENT_OPTIMIZATION field
+                            // Inject FIRE_AND_FORGET field
                             fv = super.visitField(
                                 org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
-                                "AGGRESSIVE_EVENT_OPTIMIZATION",
+                                "FIRE_AND_FORGET",
                                 "Z",
                                 null,
-                                aggressiveEventOptimization ? 1 : 0
+                                fireAndForget ? 1 : 0
                             );
                             if (fv != null) {
                                 fv.visitEnd();

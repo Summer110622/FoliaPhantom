@@ -20,14 +20,14 @@ public class CLI {
         printBanner();
 
         boolean failFast = false;
-        boolean aggressiveEventOptimization = false;
+        boolean fireAndForget = false;
         String inputPath = null;
 
         for (String arg : args) {
             if ("--fail-fast".equalsIgnoreCase(arg)) {
                 failFast = true;
-            } else if ("--aggressive-event-optimization".equalsIgnoreCase(arg)) {
-                aggressiveEventOptimization = true;
+            } else if ("--fire-and-forget".equalsIgnoreCase(arg)) {
+                fireAndForget = true;
             } else if (inputPath == null) {
                 inputPath = arg;
             } else {
@@ -50,12 +50,12 @@ public class CLI {
         if (failFast) {
             LOGGER.info("Fail-fast mode is enabled. Timeouts will throw exceptions.");
         }
-        if (aggressiveEventOptimization) {
-            LOGGER.info("Aggressive event optimization is enabled. Async event calls will not be synchronized.");
+        if (fireAndForget) {
+            LOGGER.info("Fire-and-forget mode is enabled. Async event calls will not be synchronized.");
         }
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, fireAndForget);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);

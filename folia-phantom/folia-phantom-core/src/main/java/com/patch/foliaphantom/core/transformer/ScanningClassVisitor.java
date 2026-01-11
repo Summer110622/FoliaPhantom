@@ -67,6 +67,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                     ("org/bukkit/World".equals(owner) && name.equals("spawn")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("loadChunk")) ||
                     ("org/bukkit/Bukkit".equals(owner) && name.equals("createWorld")) ||
+                    ("java/util/concurrent/CompletableFuture".equals(owner) && name.equals("get")) ||
                     ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator"))) {
                 needsPatching = true;
                 return;

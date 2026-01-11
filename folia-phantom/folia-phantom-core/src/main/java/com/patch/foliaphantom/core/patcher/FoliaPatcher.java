@@ -68,6 +68,14 @@ public final class FoliaPatcher {
      */
     public static final boolean AGGRESSIVE_EVENT_OPTIMIZATION = false;
 
+    /**
+     * If true, blocking {@code CompletableFuture.get()} calls will be converted to
+     * non-blocking "fire-and-forget" calls. This is a high-performance, high-risk
+     * optimization that may break plugins expecting a result.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final boolean FIRE_AND_FORGET = false;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -1419,5 +1427,29 @@ public final class FoliaPatcher {
                 LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
             }
         }
+    }
+
+    // --- High-Performance Future Operations ---
+
+    /**
+     * A "fire-and-forget" wrapper for {@code CompletableFuture}.
+     * This method is used to replace blocking {@code .get()} calls when the
+     * {@code FIRE_AND_FORGET} optimization is enabled. It logs the future's
+     * result or exception upon completion without blocking the calling thread.
+     *
+     * @param future The future to handle asynchronously.
+     */
+    public static void fireAndForget(CompletableFuture<?> future) {
+        if (future == null || future.isDone()) {
+            return;
+        }
+
+        future.whenComplete((result, throwable) -> {
+            if (throwable != null) {
+                LOGGER.log(Level.FINE, "[FoliaPhantom] Fire-and-forget task failed", throwable);
+            } else {
+                LOGGER.log(Level.FINE, () -> "[FoliaPhantom] Fire-and-forget task completed with result: " + result);
+            }
+        });
     }
 }

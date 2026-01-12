@@ -2,10 +2,13 @@
 /argo/
 /dummy-plugin/
 /patched-plugins/
+/patched-test-plugin/
+/test-plugin-scoreboard/patched-plugins/
 *.jar
 
 # Maven
 target/
+**/target/
 pom.xml.tag
 pom.xml.releaseBackup
 pom.xml.versionsBackup

@@ -6,6 +6,7 @@
  */
 package com.patch.foliaphantom.gui;
 
+import com.patch.foliaphantom.core.PluginPatcher;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
@@ -21,7 +22,6 @@ import javafx.stage.DirectoryChooser;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 import javafx.stage.StageStyle;
-import com.patch.foliaphantom.core.PluginPatcher;
 
 import java.awt.Desktop;
 import java.io.File;
@@ -29,11 +29,12 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
-import java.util.Objects;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.logging.*;
+import java.util.logging.Handler;
+import java.util.logging.LogRecord;
+import java.util.logging.Logger;
 
 /**
  * Modern Dashboard-style GUI for Folia Phantom.
@@ -54,6 +55,7 @@ public class FoliaPhantomApp extends Application {
     private CheckBox failFastCheckbox;
     private CheckBox aggressiveEventOptimizationCheckbox;
     private CheckBox fireAndForgetCheckbox;
+    private Spinner<Integer> timeoutSpinner;
 
     // State
     private final List<File> selectedFiles = new ArrayList<>();
@@ -216,10 +218,18 @@ public class FoliaPhantomApp extends Application {
         fireAndForgetCheckbox.getStyleClass().add("custom-checkbox");
         controls.add(fireAndForgetCheckbox, 0, 4);
 
+        Label timeoutLabel = new Label("API Timeout (ms):");
+        timeoutSpinner = new Spinner<>(1, 30000, 100);
+        timeoutSpinner.setEditable(true);
+        timeoutSpinner.setPrefWidth(100);
+        HBox timeoutBox = new HBox(10, timeoutLabel, timeoutSpinner);
+        timeoutBox.setAlignment(Pos.CENTER_LEFT);
+        controls.add(timeoutBox, 0, 5);
+
         Button outDirBtn = new Button("Change Output Folder");
         outDirBtn.getStyleClass().add("glass-button-sm");
         outDirBtn.setOnAction(e -> chooseOutputDir(stage));
-        controls.add(outDirBtn, 1, 1, 1, 4); // Span across rows
+        controls.add(outDirBtn, 1, 1, 1, 5); // Span across rows
         GridPane.setValignment(outDirBtn, javafx.geometry.VPos.TOP);
 
         // Progress Card
@@ -315,8 +325,9 @@ public class FoliaPhantomApp extends Application {
                     boolean failFast = failFastCheckbox.isSelected();
                     boolean aggressiveOpt = aggressiveEventOptimizationCheckbox.isSelected();
                     boolean fireAndForget = fireAndForgetCheckbox.isSelected();
+                    long timeout = timeoutSpinner.getValue();
 
-                    PluginPatcher patcher = new PluginPatcher(patcherLogger, null, failFast, aggressiveOpt, fireAndForget);
+                    PluginPatcher patcher = new PluginPatcher(patcherLogger, null, failFast, aggressiveOpt, fireAndForget, timeout);
                     patcher.patchPlugin(file, output);
 
                     successCount.incrementAndGet();

@@ -216,7 +216,7 @@ public class PluginPatcher {
             transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
+            transformers.add(new ScoreboardTransformer(relocatedPatcherPath));
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
 

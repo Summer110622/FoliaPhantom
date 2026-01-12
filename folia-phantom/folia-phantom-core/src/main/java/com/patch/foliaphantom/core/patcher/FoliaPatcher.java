@@ -76,6 +76,12 @@ public final class FoliaPatcher {
      */
     public static final boolean FIRE_AND_FORGET = false;
 
+    /**
+     * The timeout in milliseconds for API calls that block for a result.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final long API_TIMEOUT_MS = 100;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -404,7 +410,7 @@ public final class FoliaPatcher {
 
             try {
                 // Block for a short time to prevent server hangs
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
                 return null;
@@ -455,7 +461,7 @@ public final class FoliaPatcher {
             }
             try {
                 // We use teleportAsync and wait for it to complete.
-                return player.teleportAsync(location).get(1, TimeUnit.SECONDS);
+                return player.teleportAsync(location).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
                 return false;
@@ -488,7 +494,7 @@ public final class FoliaPatcher {
                 return null;
             }
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
                 return null;
@@ -521,7 +527,7 @@ public final class FoliaPatcher {
                 return null;
             }
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
                 return null;
@@ -549,7 +555,7 @@ public final class FoliaPatcher {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.createExplosion(location, power, setFire, breakBlocks)));
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
                 return false;
@@ -604,7 +610,7 @@ public final class FoliaPatcher {
                 return null;
             }
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
                 return null;
@@ -661,7 +667,7 @@ public final class FoliaPatcher {
             // Game rules are global, so use the global scheduler
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.setGameRule(rule, value)));
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
                 return false;
@@ -693,7 +699,7 @@ public final class FoliaPatcher {
                 return null;
             }
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new objective '" + name + "'", e);
                 return null;
@@ -723,7 +729,7 @@ public final class FoliaPatcher {
                 return null;
             }
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to register new team '" + name + "'", e);
                 return null;
@@ -774,7 +780,7 @@ public final class FoliaPatcher {
             CompletableFuture<Boolean> future = new CompletableFuture<>();
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(team.removeEntry(entry)));
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to remove team entry '" + entry + "'", e);
                 return false;
@@ -858,7 +864,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objective '" + name + "'", e);
             return null;
@@ -887,7 +893,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objectives by criteria '" + criteria + "'", e);
             return java.util.Collections.emptySet();
@@ -916,7 +922,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get objectives", e);
             return java.util.Collections.emptySet();
@@ -945,7 +951,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get scoreboard entries", e);
             return java.util.Collections.emptySet();
@@ -974,7 +980,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team '" + teamName + "'", e);
             return null;
@@ -1003,7 +1009,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get teams", e);
             return java.util.Collections.emptySet();
@@ -1034,7 +1040,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get score for entry '" + entry + "'", e);
             return null;
@@ -1065,7 +1071,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team entries", e);
             return java.util.Collections.emptySet();
@@ -1094,7 +1100,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team players", e);
             return java.util.Collections.emptySet();
@@ -1123,7 +1129,7 @@ public final class FoliaPatcher {
             }
         });
         try {
-            return future.get(100, TimeUnit.MILLISECONDS);
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
         } catch (InterruptedException | ExecutionException e) {
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get team size", e);
             return 0;
@@ -1196,7 +1202,7 @@ public final class FoliaPatcher {
             }
 
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to add item to inventory", e);
                 // On non-timeout failure, return original items as per Bukkit API contract
@@ -1328,7 +1334,7 @@ public final class FoliaPatcher {
                 }
             }, null);
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
                 return null;
@@ -1385,7 +1391,7 @@ public final class FoliaPatcher {
                 }
             }, null);
             try {
-                return future.get(100, TimeUnit.MILLISECONDS);
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
                 return false;
@@ -1509,7 +1515,7 @@ public final class FoliaPatcher {
         // to maintain the original execution flow. A timeout is used to prevent hangs.
         if (!AGGRESSIVE_EVENT_OPTIMIZATION) {
             try {
-                future.get(5, TimeUnit.SECONDS);
+                future.get(API_TIMEOUT_MS * 50, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
                 LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
             } catch (TimeoutException e) {

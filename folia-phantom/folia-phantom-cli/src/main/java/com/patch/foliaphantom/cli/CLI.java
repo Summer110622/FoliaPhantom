@@ -22,15 +22,29 @@ public class CLI {
         boolean failFast = false;
         boolean aggressiveEventOptimization = false;
         boolean fireAndForget = false;
+        long apiTimeoutMs = 100L;
         String inputPath = null;
 
-        for (String arg : args) {
+        for (int i = 0; i < args.length; i++) {
+            String arg = args[i];
             if ("--fail-fast".equalsIgnoreCase(arg)) {
                 failFast = true;
             } else if ("--aggressive-event-optimization".equalsIgnoreCase(arg)) {
                 aggressiveEventOptimization = true;
             } else if ("--fire-and-forget".equalsIgnoreCase(arg)) {
                 fireAndForget = true;
+            } else if ("--timeout".equalsIgnoreCase(arg)) {
+                if (i + 1 < args.length) {
+                    try {
+                        apiTimeoutMs = Long.parseLong(args[++i]);
+                    } catch (NumberFormatException e) {
+                        LOGGER.severe("Error: Invalid timeout value provided. Please use a number.");
+                        return;
+                    }
+                } else {
+                    LOGGER.severe("Error: --timeout flag requires a value in milliseconds.");
+                    return;
+                }
             } else if (inputPath == null) {
                 inputPath = arg;
             } else {
@@ -59,9 +73,10 @@ public class CLI {
         if (fireAndForget) {
             LOGGER.info("Fire-and-forget mode is enabled. API calls will not block, potentially increasing performance but may cause issues.");
         }
+        LOGGER.info("API call timeout is set to: " + apiTimeoutMs + "ms.");
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget, apiTimeoutMs);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);

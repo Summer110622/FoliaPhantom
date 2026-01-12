@@ -27,6 +27,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.SimpleRemapper;
 
@@ -102,6 +103,9 @@ public class PluginPatcher {
     /** Whether to enable fire-and-forget mode for performance */
     private final boolean fireAndForget;
 
+    /** API call timeout in milliseconds */
+    private final long apiTimeoutMs;
+
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
@@ -134,20 +138,25 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
         this.aggressiveEventOptimization = aggressiveEventOptimization;
         this.fireAndForget = fireAndForget;
+        this.apiTimeoutMs = apiTimeoutMs;
+    }
+
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, 100L);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false, 100L);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
-        this(logger, progressListener, failFastOnTimeout, false, false);
+        this(logger, progressListener, failFastOnTimeout, false, false, 100L);
     }
 
     /**
@@ -157,7 +166,7 @@ public class PluginPatcher {
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this(logger, progressListener, false, false, false);
+        this(logger, progressListener, false, false, false, 100L);
     }
 
     /**
@@ -166,7 +175,7 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null, false, false, false);
+        this(logger, null, false, false, false, 100L);
     }
 
     /**
@@ -354,12 +363,12 @@ public class PluginPatcher {
                 // Inject the FAIL_FAST field only into the main FoliaPatcher class
                 if (originalClassPath.equals("com/patch/foliaphantom/core/patcher/FoliaPatcher.class")) {
                     final ClassVisitor nextVisitor = cv;
-                    cv = new ClassVisitor(org.objectweb.asm.Opcodes.ASM9, nextVisitor) {
+                    cv = new ClassVisitor(Opcodes.ASM9, nextVisitor) {
                         @Override
                         public void visitEnd() {
                             // Inject FAIL_FAST field
                             FieldVisitor fv = super.visitField(
-                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
                                 "FAIL_FAST",
                                 "Z",
                                 null,
@@ -371,7 +380,7 @@ public class PluginPatcher {
 
                             // Inject AGGRESSIVE_EVENT_OPTIMIZATION field
                             fv = super.visitField(
-                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
                                 "AGGRESSIVE_EVENT_OPTIMIZATION",
                                 "Z",
                                 null,
@@ -383,11 +392,23 @@ public class PluginPatcher {
 
                             // Inject FIRE_AND_FORGET field
                             fv = super.visitField(
-                                org.objectweb.asm.Opcodes.ACC_PUBLIC | org.objectweb.asm.Opcodes.ACC_STATIC | org.objectweb.asm.Opcodes.ACC_FINAL,
+                                Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
                                 "FIRE_AND_FORGET",
                                 "Z",
                                 null,
                                 fireAndForget ? 1 : 0
+                            );
+                            if (fv != null) {
+                                fv.visitEnd();
+                            }
+
+                            // Inject API_TIMEOUT_MS field
+                            fv = super.visitField(
+                                Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
+                                "API_TIMEOUT_MS",
+                                "J",
+                                null,
+                                apiTimeoutMs
                             );
                             if (fv != null) {
                                 fv.visitEnd();

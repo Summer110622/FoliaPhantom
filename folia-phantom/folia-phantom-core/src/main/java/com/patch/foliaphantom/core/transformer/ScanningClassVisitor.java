@@ -61,6 +61,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                     "org/bukkit/scoreboard/Team".equals(owner) ||
                     "org/bukkit/scoreboard/Objective".equals(owner) ||
                     "org/bukkit/scoreboard/Score".equals(owner) ||
+                    ("org/bukkit/Server".equals(owner) && name.equals("getOnlinePlayers")) || // Added for ServerGetOnlinePlayersTransformer
                     ("org/bukkit/plugin/PluginManager".equals(owner) && name.equals("callEvent")) || // Added for EventCallTransformer
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setType")) ||
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData")) ||

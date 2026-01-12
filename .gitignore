@@ -3,6 +3,7 @@
 /dummy-plugin/
 /patched-plugins/
 *.jar
+patched-jar-contents/
 
 # Maven
 target/

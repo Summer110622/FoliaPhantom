@@ -1,4 +1,0 @@
-name: TestPluginScoreboard
-version: 1.0
-main: com.example.test.TestPlugin
-api-version: 1.19

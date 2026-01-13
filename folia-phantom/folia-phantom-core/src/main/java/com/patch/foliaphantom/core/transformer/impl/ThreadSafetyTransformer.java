@@ -140,6 +140,22 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     if ("setGameRule".equals(name) && "(Lorg/bukkit/GameRule;Ljava/lang/Object;)Z".equals(desc)) {
                         return transform(2, "safeSetGameRule", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/GameRule;Ljava/lang/Object;)Z");
                     }
+                    if ("getEntities".equals(name) && "()Ljava/util/List;".equals(desc)) {
+                        return transform(0, "safeGetEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
+                    }
+                    if ("getLivingEntities".equals(name) && "()Ljava/util/List;".equals(desc)) {
+                        return transform(0, "safeGetLivingEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
+                    }
+                    if ("getEntitiesByClass".equals(name) && "(Ljava/lang/Class;)Ljava/util/Collection;".equals(desc)) {
+                        return transform(1, "safeGetEntitiesByClass", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Ljava/lang/Class;)Ljava/util/Collection;");
+                    }
+                    if ("getEntitiesByClasses".equals(name) && "([Ljava/lang/Class;)Ljava/util/Collection;".equals(desc)) {
+                        return transform(1, "safeGetEntitiesByClasses", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;[Ljava/lang/Class;)Ljava/util/Collection;");
+                    }
+                    if ("getChunkAt".equals(name)) {
+                        if ("(II)Lorg/bukkit/Chunk;".equals(desc)) return transform(2, "safeGetChunkAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;II)Lorg/bukkit/Chunk;");
+                        if ("(Lorg/bukkit/Location;)Lorg/bukkit/Chunk;".equals(desc)) return transform(1, "safeGetChunkAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;)Lorg/bukkit/Chunk;");
+                    }
                     break;
                 case "org/bukkit/entity/Entity":
                     switch (name) {

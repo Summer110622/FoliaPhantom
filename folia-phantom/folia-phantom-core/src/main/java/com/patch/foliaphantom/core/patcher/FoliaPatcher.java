@@ -371,6 +371,102 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
+    /**
+     * Safely gets all entities in a world.
+     */
+    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getEntities());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get entities for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets all living entities in a world.
+     */
+    public static java.util.List<org.bukkit.entity.LivingEntity> safeGetLivingEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getLivingEntities();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<org.bukkit.entity.LivingEntity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getLivingEntities());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get living entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get living entities for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting living entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets nearby entities to a location.
+     */
+    public static java.util.Collection<Entity> safeGetNearbyEntities(Plugin plugin, World world, Location location, double x, double y, double z) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getNearbyEntities(location, x, y, z);
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.Collection<Entity>> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> {
+            try {
+                future.complete(world.getNearbyEntities(location, x, y, z));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get nearby entities", e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get nearby entities", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting nearby entities", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);

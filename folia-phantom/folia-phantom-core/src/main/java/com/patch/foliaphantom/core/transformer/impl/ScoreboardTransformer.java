@@ -26,11 +26,21 @@ public class ScoreboardTransformer implements ClassTransformer {
 
     private final Logger logger;
     private final String relocatedPatcherPath;
+    private final String pluginMainClassInternal;
+    private final String pluginMainClassDescriptor;
     private final Map<String, Map<String, MethodMapping>> methodMappings;
 
-    public ScoreboardTransformer(Logger logger, String relocatedPatcherPath) {
+    public ScoreboardTransformer(Logger logger, String relocatedPatcherPath, String pluginMainClass) {
         this.logger = logger;
         this.relocatedPatcherPath = relocatedPatcherPath + "/" + PATCHER_CLASS;
+        if (pluginMainClass != null) {
+            this.pluginMainClassInternal = pluginMainClass.replace('.', '/');
+            this.pluginMainClassDescriptor = "L" + this.pluginMainClassInternal + ";";
+        } else {
+            this.pluginMainClassInternal = null;
+            this.pluginMainClassDescriptor = null;
+        }
+
         this.methodMappings = new HashMap<>();
 
         // Scoreboard Mappings
@@ -90,6 +100,7 @@ public class ScoreboardTransformer implements ClassTransformer {
         private String className;
         private String outerClassName = null;
         private boolean isPluginSubclass = false;
+        private String pluginField = null;
 
         public ScoreboardClassVisitor(ClassVisitor classVisitor) {
             super(Opcodes.ASM9, classVisitor);
@@ -99,15 +110,22 @@ public class ScoreboardTransformer implements ClassTransformer {
         public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
             super.visit(version, access, name, signature, superName, interfaces);
             this.className = name;
-            if ("org/bukkit/plugin/java/JavaPlugin".equals(superName)) {
-                this.isPluginSubclass = true;
-            }
+            this.isPluginSubclass = (pluginMainClassInternal != null && pluginMainClassInternal.equals(name));
         }
 
         @Override
         public void visitOuterClass(String owner, String name, String descriptor) {
             super.visitOuterClass(owner, name, descriptor);
             this.outerClassName = owner;
+        }
+
+        @Override
+        public org.objectweb.asm.FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            if (pluginField == null && pluginMainClassDescriptor != null && descriptor.equals(pluginMainClassDescriptor)) {
+                this.pluginField = name;
+                logger.finer("Found plugin field '" + name + "' in class " + className);
+            }
+            return super.visitField(access, name, descriptor, signature, value);
         }
 
         @Override
@@ -152,17 +170,21 @@ public class ScoreboardTransformer implements ClassTransformer {
                     storeLocal(ownerLocal);
 
                     // --- Plugin Instance Loading Logic ---
-                    boolean pluginFound = false;
+                    boolean pluginLoaded = false;
                     if (isPluginSubclass) {
-                        loadThis(); // 'this' is the plugin instance
-                        pluginFound = true;
-                    } else if (outerClassName != null) {
+                        loadThis(); // 'this' is the plugin instance.
+                        pluginLoaded = true;
+                    } else if (outerClassName != null && pluginMainClassInternal != null && outerClassName.equals(pluginMainClassInternal)) {
                         loadThis();
                         super.visitFieldInsn(GETFIELD, className, "this$0", "L" + outerClassName + ";");
-                        pluginFound = true;
+                        pluginLoaded = true;
+                    } else if (pluginField != null) {
+                        loadThis();
+                        super.visitFieldInsn(GETFIELD, className, pluginField, pluginMainClassDescriptor);
+                        pluginLoaded = true;
                     }
 
-                    if (pluginFound) {
+                    if (pluginLoaded) {
                         logger.finer("Transforming " + owner.substring(owner.lastIndexOf('/') + 1) + " call '" + name + "' in " + className);
 
                         // Load the owner object (scoreboard, team, etc.)

@@ -213,6 +213,11 @@ public class PluginPatcher {
                 throw new IOException("Could not find plugin name from plugin.yml");
             }
 
+            String pluginMainClass = getPluginMainClassFromJar(originalJar);
+            if (pluginMainClass == null) {
+                logger.warning("Could not find main class from plugin.yml for " + pluginName + ". Some transformations may be skipped.");
+            }
+
             // Sanitize plugin name for package relocation
             String safePluginName = pluginName.toLowerCase().replaceAll("[^a-z0-9]", "");
             this.relocatedPatcherPath = safePluginName + "/folia/runtime";
@@ -227,7 +232,7 @@ public class PluginPatcher {
             transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
+            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath, pluginMainClass));
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
 
@@ -509,6 +514,28 @@ public class PluginPatcher {
                 return Files.readAllLines(pluginYmlPath).stream()
                         .map(String::trim)
                         .filter(line -> line.startsWith("name:"))
+                        .findFirst()
+                        .map(line -> line.substring(line.indexOf(":") + 1).trim())
+                        .orElse(null);
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extracts the plugin main class path from a JAR file's plugin.yml.
+     *
+     * @param jarFile The plugin JAR file
+     * @return The plugin main class path, or null if not found
+     * @throws IOException If an I/O error occurs
+     */
+    public static String getPluginMainClassFromJar(File jarFile) throws IOException {
+        try (FileSystem zipfs = FileSystems.newFileSystem(jarFile.toPath(), Collections.emptyMap())) {
+            Path pluginYmlPath = zipfs.getPath("plugin.yml");
+            if (Files.exists(pluginYmlPath)) {
+                return Files.readAllLines(pluginYmlPath).stream()
+                        .map(String::trim)
+                        .filter(line -> line.startsWith("main:"))
                         .findFirst()
                         .map(line -> line.substring(line.indexOf(":") + 1).trim())
                         .orElse(null);

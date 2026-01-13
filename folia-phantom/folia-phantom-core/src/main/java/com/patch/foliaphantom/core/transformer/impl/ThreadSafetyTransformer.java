@@ -105,8 +105,9 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         if ("(Lorg/bukkit/Material;)V".equals(desc)) return transform(1, "safeSetType", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V");
                         if ("(Lorg/bukkit/Material;Z)V".equals(desc)) return transform(2, "safeSetTypeWithPhysics", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V");
                     }
-                    if ("setBlockData".equals(name) && "(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
-                        return transform(2, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V");
+                    if ("setBlockData".equals(name)) {
+                        if ("(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) return transform(2, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V");
+                        if ("(Lorg/bukkit/block/data/BlockData;)V".equals(desc)) return transform(1, "safeSetBlockData", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;)V");
                     }
                     break;
                 case "org/bukkit/World":
@@ -139,6 +140,20 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     }
                     if ("setGameRule".equals(name) && "(Lorg/bukkit/GameRule;Ljava/lang/Object;)Z".equals(desc)) {
                         return transform(2, "safeSetGameRule", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/GameRule;Ljava/lang/Object;)Z");
+                    }
+                    if ("getBlockAt".equals(name)) {
+                        if ("(III)Lorg/bukkit/block/Block;".equals(desc)) return transform(3, "safeGetBlockAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;III)Lorg/bukkit/block/Block;");
+                        if ("(Lorg/bukkit/Location;)Lorg/bukkit/block/Block;".equals(desc)) return transform(1, "safeGetBlockAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;)Lorg/bukkit/block/Block;");
+                    }
+                    if ("getHighestBlockAt".equals(name)) {
+                        if ("(II)Lorg/bukkit/block/Block;".equals(desc)) return transform(2, "safeGetHighestBlockAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;II)Lorg/bukkit/block/Block;");
+                        if ("(Lorg/bukkit/Location;)Lorg/bukkit/block/Block;".equals(desc)) return transform(1, "safeGetHighestBlockAt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;)Lorg/bukkit/block/Block;");
+                    }
+                    if ("getEntities".equals(name) && "()Ljava/util/List;".equals(desc)) {
+                        return transform(0, "safeGetEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
+                    }
+                    if ("getNearbyEntities".equals(name) && "(Lorg/bukkit/Location;DDD)Ljava/util/Collection;".equals(desc)) {
+                        return transform(4, "safeGetNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;DDD)Ljava/util/Collection;");
                     }
                     break;
                 case "org/bukkit/entity/Entity":

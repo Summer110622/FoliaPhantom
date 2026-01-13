@@ -67,6 +67,9 @@ public class ScanningClassVisitor extends ClassVisitor {
                     ("org/bukkit/block/Block".equals(owner) && name.equals("setBlockData")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("spawn")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("loadChunk")) ||
+                    ("org/bukkit/World".equals(owner) && name.equals("getEntities")) ||
+                    ("org/bukkit/World".equals(owner) && name.equals("getLivingEntities")) ||
+                    ("org/bukkit/World".equals(owner) && name.equals("getNearbyEntities")) ||
                     ("org/bukkit/Bukkit".equals(owner) && name.equals("createWorld")) ||
                     ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator"))) {
                 needsPatching = true;

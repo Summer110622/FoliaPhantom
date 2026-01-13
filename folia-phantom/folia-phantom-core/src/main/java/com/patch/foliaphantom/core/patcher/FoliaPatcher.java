@@ -371,6 +371,86 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe World Operations ---
 
+    public static Block safeGetBlockAt(Plugin plugin, World world, int x, int y, int z) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getBlockAt(x, y, z);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<Block> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().execute(plugin, world, x, z, () -> future.complete(world.getBlockAt(x, y, z)));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (FAIL_FAST) throw new FoliaPatcherTimeoutException("Failed to get block at " + x + "," + y + "," + z, e);
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out getting block at " + x + "," + y + "," + z, e);
+            return null;
+        }
+    }
+
+    public static Block safeGetBlockAt(Plugin plugin, World world, Location location) {
+        return safeGetBlockAt(plugin, world, location.getBlockX(), location.getBlockY(), location.getBlockZ());
+    }
+
+    public static Block safeGetHighestBlockAt(Plugin plugin, World world, int x, int z) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getHighestBlockAt(x, z);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<Block> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().execute(plugin, world, x, z, () -> future.complete(world.getHighestBlockAt(x, z)));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (FAIL_FAST) throw new FoliaPatcherTimeoutException("Failed to get highest block at " + x + "," + z, e);
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out getting highest block at " + x + "," + z, e);
+            return null;
+        }
+    }
+
+    public static Block safeGetHighestBlockAt(Plugin plugin, World world, Location location) {
+        return safeGetHighestBlockAt(plugin, world, location.getBlockX(), location.getBlockZ());
+    }
+
+    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.getEntities()));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (FAIL_FAST) throw new FoliaPatcherTimeoutException("Failed to get entities for world " + world.getName(), e);
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out getting entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    public static java.util.Collection<Entity> safeGetNearbyEntities(Plugin plugin, World world, Location location, double dx, double dy, double dz) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getNearbyEntities(location, dx, dy, dz);
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.Collection<Entity>> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.getNearbyEntities(location, dx, dy, dz)));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            if (FAIL_FAST) throw new FoliaPatcherTimeoutException("Failed to get nearby entities", e);
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out getting nearby entities", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
@@ -432,6 +512,17 @@ public final class FoliaPatcher {
             block.setBlockData(data, applyPhysics);
         } else {
             Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
+        }
+    }
+
+    /**
+     * Safely sets the block data for a block without physics.
+     */
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
         }
     }
 

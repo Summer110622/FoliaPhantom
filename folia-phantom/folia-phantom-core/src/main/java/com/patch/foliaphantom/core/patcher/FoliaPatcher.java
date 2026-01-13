@@ -82,6 +82,12 @@ public final class FoliaPatcher {
      */
     public static final long API_TIMEOUT_MS = 100;
 
+    /**
+     * The timeout in milliseconds for chunk-related API calls that block for a result.
+     * This is separate from API_TIMEOUT_MS because chunk loading can be slower.
+     */
+    private static final long CHUNK_API_TIMEOUT_MS = 500;
+
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
         Thread t = new Thread(r, "FoliaPhantom-WorldGen-Worker");
@@ -679,6 +685,173 @@ public final class FoliaPatcher {
                 return false;
             }
         }
+    }
+
+    /**
+     * Safely gets a list of all entities in a world.
+     */
+    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntities();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getEntities());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get entities for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets a list of all living entities in a world.
+     */
+    public static java.util.List<org.bukkit.entity.LivingEntity> safeGetLivingEntities(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getLivingEntities();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<org.bukkit.entity.LivingEntity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getLivingEntities());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get living entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get living entities for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting living entities for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets a collection of entities in a world by their class.
+     */
+    public static <T extends Entity> java.util.Collection<T> safeGetEntitiesByClass(Plugin plugin, World world, Class<T> cls) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntitiesByClass(cls);
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.Collection<T>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getEntitiesByClass(cls));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities by class for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get entities by class for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting entities by class for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets a collection of entities in a world by their classes.
+     */
+    public static java.util.Collection<Entity> safeGetEntitiesByClasses(Plugin plugin, World world, Class<?>... classes) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getEntitiesByClasses(classes);
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.Collection<Entity>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getEntitiesByClasses(classes));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities by classes for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get entities by classes for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting entities by classes for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets the chunk at the specified coordinates.
+     */
+    public static org.bukkit.Chunk safeGetChunkAt(Plugin plugin, World world, int x, int z) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getChunkAt(x, z);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<org.bukkit.Chunk> future = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().execute(plugin, world, x, z, () -> {
+            try {
+                future.complete(world.getChunkAt(x, z));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(CHUNK_API_TIMEOUT_MS, TimeUnit.MILLISECONDS); // Chunk loading can be slow
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get chunk at " + x + "," + z + " in world " + world.getName(), e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get chunk at " + x + "," + z + " in world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out getting chunk at " + x + "," + z + " in world " + world.getName(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely gets the chunk at the specified location.
+     */
+    public static org.bukkit.Chunk safeGetChunkAt(Plugin plugin, World world, Location location) {
+        return safeGetChunkAt(plugin, world, location.getBlockX() >> 4, location.getBlockZ() >> 4);
     }
 
     // --- Thread-Safe Scoreboard Operations ---

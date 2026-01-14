@@ -372,6 +372,38 @@ public final class FoliaPatcher {
     // --- Thread-Safe World Operations ---
 
     /**
+     * Safely gets all players in a world.
+     */
+    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getPlayers();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getPlayers());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
      * Safely gets all entities in a world.
      */
     public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {

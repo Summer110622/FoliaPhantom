@@ -49,6 +49,7 @@ public class EventHandlerTransformer implements ClassTransformer {
     private class EventHandlerMethodVisitor extends AdviceAdapter {
         private boolean isEventHandler = false;
         private boolean isMonitorPriority = false;
+        private boolean ignoreCancelled = false; // Defaults to false, as per Bukkit's annotation
 
         protected EventHandlerMethodVisitor(MethodVisitor methodVisitor, int access, String name, String descriptor) {
             super(Opcodes.ASM9, methodVisitor, access, name, descriptor);
@@ -65,20 +66,24 @@ public class EventHandlerTransformer implements ClassTransformer {
 
         @Override
         protected void onMethodEnter() {
-            if (isEventHandler && !isMonitorPriority) {
+            // Inject check only if it's a handler, not MONITOR priority, and doesn't ignore cancelled events
+            if (isEventHandler && !isMonitorPriority && !ignoreCancelled) {
                 Type[] args = Type.getArgumentTypes(methodDesc);
                 if (args.length == 1) {
                     Label skipReturnLabel = new Label();
 
+                    // Check if the event is an instance of Cancellable
                     mv.visitVarInsn(ALOAD, 1);
                     mv.visitTypeInsn(INSTANCEOF, CANCELLABLE_INTERNAL_NAME);
                     mv.visitJumpInsn(IFEQ, skipReturnLabel);
 
+                    // Check if event.isCancelled() is true
                     mv.visitVarInsn(ALOAD, 1);
                     mv.visitTypeInsn(CHECKCAST, CANCELLABLE_INTERNAL_NAME);
                     mv.visitMethodInsn(INVOKEINTERFACE, CANCELLABLE_INTERNAL_NAME, "isCancelled", "()Z", true);
                     mv.visitJumpInsn(IFEQ, skipReturnLabel);
 
+                    // If so, return
                     mv.visitInsn(RETURN);
 
                     mv.visitLabel(skipReturnLabel);
@@ -98,6 +103,14 @@ public class EventHandlerTransformer implements ClassTransformer {
                     isMonitorPriority = true;
                 }
                 super.visitEnum(name, descriptor, value);
+            }
+
+            @Override
+            public void visit(String name, Object value) {
+                if ("ignoreCancelled".equals(name) && value instanceof Boolean) {
+                    EventHandlerMethodVisitor.this.ignoreCancelled = (Boolean) value;
+                }
+                super.visit(name, value);
             }
         }
     }

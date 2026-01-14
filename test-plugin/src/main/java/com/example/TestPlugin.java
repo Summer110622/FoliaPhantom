@@ -1,12 +1,18 @@
 package com.example;
 
-import org.bukkit.Bukkit;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.World;
+import java.util.List;
+import org.bukkit.entity.Player;
 
 public class TestPlugin extends JavaPlugin {
     @Override
     public void onEnable() {
-        int count = Bukkit.getServer().getOnlinePlayers().size();
-        getLogger().info("There are " + count + " players online.");
+        getLogger().info("TestPlugin enabled!");
+        World world = getServer().getWorlds().get(0);
+        if (world != null) {
+            List<Player> players = world.getPlayers();
+            getLogger().info("Found " + players.size() + " players.");
+        }
     }
 }

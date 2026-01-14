@@ -1,4 +1,4 @@
 name: TestPlugin
 version: 1.0
-main: com.example.TestPlugin
-api-version: 1.19
+main: com.example.testplugin.TestPlugin
+api-version: 1.17

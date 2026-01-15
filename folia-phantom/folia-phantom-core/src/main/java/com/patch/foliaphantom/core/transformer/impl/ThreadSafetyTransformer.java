@@ -149,6 +149,9 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     if ("getNearbyEntities".equals(name) && "(Lorg/bukkit/Location;DDD)Ljava/util/Collection;".equals(desc)) {
                         return transform(4, "safeGetNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;DDD)Ljava/util/Collection;");
                     }
+                    if ("getPlayers".equals(name) && "()Ljava/util/List;".equals(desc)) {
+                        return transform(0, "safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
+                    }
                     break;
                 case "org/bukkit/entity/Entity":
                     switch (name) {

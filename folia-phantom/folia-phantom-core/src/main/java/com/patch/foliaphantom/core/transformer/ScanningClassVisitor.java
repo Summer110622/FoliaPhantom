@@ -71,6 +71,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                     ("org/bukkit/World".equals(owner) && name.equals("getLivingEntities")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("getPlayers")) ||
                     ("org/bukkit/World".equals(owner) && name.equals("getNearbyEntities")) ||
+                    ("org/bukkit/World".equals(owner) && name.equals("getPlayers")) ||
                     ("org/bukkit/Bukkit".equals(owner) && name.equals("createWorld")) ||
                     ("org/bukkit/plugin/Plugin".equals(owner) && name.equals("getDefaultWorldGenerator"))) {
                 needsPatching = true;

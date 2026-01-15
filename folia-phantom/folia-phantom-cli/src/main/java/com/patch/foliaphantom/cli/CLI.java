@@ -22,6 +22,7 @@ public class CLI {
         boolean failFast = false;
         boolean aggressiveEventOptimization = false;
         boolean fireAndForget = false;
+        boolean fireAndForgetTeleport = false;
         long apiTimeoutMs = 100L;
         String inputPath = null;
 
@@ -33,6 +34,8 @@ public class CLI {
                 aggressiveEventOptimization = true;
             } else if ("--fire-and-forget".equalsIgnoreCase(arg)) {
                 fireAndForget = true;
+            } else if ("--fire-and-forget-teleport".equalsIgnoreCase(arg)) {
+                fireAndForgetTeleport = true;
             } else if ("--timeout".equalsIgnoreCase(arg)) {
                 if (i + 1 < args.length) {
                     try {
@@ -73,10 +76,13 @@ public class CLI {
         if (fireAndForget) {
             LOGGER.info("Fire-and-forget mode is enabled. API calls will not block, potentially increasing performance but may cause issues.");
         }
+        if (fireAndForgetTeleport) {
+            LOGGER.info("Fire-and-forget teleport is enabled. Teleport calls will not be synchronized.");
+        }
         LOGGER.info("API call timeout is set to: " + apiTimeoutMs + "ms.");
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget, apiTimeoutMs);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget, fireAndForgetTeleport, apiTimeoutMs);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);

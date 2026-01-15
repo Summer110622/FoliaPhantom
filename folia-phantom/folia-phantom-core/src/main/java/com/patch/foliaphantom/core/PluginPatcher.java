@@ -105,6 +105,9 @@ public class PluginPatcher {
     /** Whether to enable fire-and-forget mode for performance */
     private final boolean fireAndForget;
 
+    /** Whether to use fire-and-forget for teleporation */
+    private final boolean fireAndForgetTeleport;
+
     /** API call timeout in milliseconds */
     private final long apiTimeoutMs;
 
@@ -140,25 +143,30 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, boolean fireAndForgetTeleport, long apiTimeoutMs) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
         this.aggressiveEventOptimization = aggressiveEventOptimization;
         this.fireAndForget = fireAndForget;
+        this.fireAndForgetTeleport = fireAndForgetTeleport;
         this.apiTimeoutMs = apiTimeoutMs;
     }
 
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, false, apiTimeoutMs);
+    }
+
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, 100L);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, false, 100L);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false, 100L);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false, false, 100L);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
-        this(logger, progressListener, failFastOnTimeout, false, false, 100L);
+        this(logger, progressListener, failFastOnTimeout, false, false, false, 100L);
     }
 
     /**
@@ -168,7 +176,7 @@ public class PluginPatcher {
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this(logger, progressListener, false, false, false, 100L);
+        this(logger, progressListener, false, false, false, false, 100L);
     }
 
     /**
@@ -177,7 +185,7 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null, false, false, false, 100L);
+        this(logger, null, false, false, false, false, 100L);
     }
 
     /**
@@ -377,6 +385,18 @@ public class PluginPatcher {
                                 "Z",
                                 null,
                                 failFastOnTimeout ? 1 : 0
+                            );
+                            if (fv != null) {
+                                fv.visitEnd();
+                            }
+
+                            // Inject FIRE_AND_FORGET_TELEPORT field
+                            fv = super.visitField(
+                                Opcodes.ACC_PUBLIC | Opcodes.ACC_STATIC | Opcodes.ACC_FINAL,
+                                "FIRE_AND_FORGET_TELEPORT",
+                                "Z",
+                                null,
+                                fireAndForgetTeleport ? 1 : 0
                             );
                             if (fv != null) {
                                 fv.visitEnd();

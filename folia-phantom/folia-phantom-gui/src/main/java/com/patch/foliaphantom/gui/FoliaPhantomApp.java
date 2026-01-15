@@ -55,6 +55,7 @@ public class FoliaPhantomApp extends Application {
     private CheckBox failFastCheckbox;
     private CheckBox aggressiveEventOptimizationCheckbox;
     private CheckBox fireAndForgetCheckbox;
+    private CheckBox fireAndForgetTeleportCheckbox;
     private Spinner<Integer> timeoutSpinner;
 
     // State
@@ -218,18 +219,22 @@ public class FoliaPhantomApp extends Application {
         fireAndForgetCheckbox.getStyleClass().add("custom-checkbox");
         controls.add(fireAndForgetCheckbox, 0, 4);
 
+        fireAndForgetTeleportCheckbox = new CheckBox("Fire-and-Forget Teleport");
+        fireAndForgetTeleportCheckbox.getStyleClass().add("custom-checkbox");
+        controls.add(fireAndForgetTeleportCheckbox, 0, 5);
+
         Label timeoutLabel = new Label("API Timeout (ms):");
         timeoutSpinner = new Spinner<>(1, 30000, 100);
         timeoutSpinner.setEditable(true);
         timeoutSpinner.setPrefWidth(100);
         HBox timeoutBox = new HBox(10, timeoutLabel, timeoutSpinner);
         timeoutBox.setAlignment(Pos.CENTER_LEFT);
-        controls.add(timeoutBox, 0, 5);
+        controls.add(timeoutBox, 0, 6);
 
         Button outDirBtn = new Button("Change Output Folder");
         outDirBtn.getStyleClass().add("glass-button-sm");
         outDirBtn.setOnAction(e -> chooseOutputDir(stage));
-        controls.add(outDirBtn, 1, 1, 1, 5); // Span across rows
+        controls.add(outDirBtn, 1, 1, 1, 6); // Span across rows
         GridPane.setValignment(outDirBtn, javafx.geometry.VPos.TOP);
 
         // Progress Card
@@ -325,9 +330,10 @@ public class FoliaPhantomApp extends Application {
                     boolean failFast = failFastCheckbox.isSelected();
                     boolean aggressiveOpt = aggressiveEventOptimizationCheckbox.isSelected();
                     boolean fireAndForget = fireAndForgetCheckbox.isSelected();
+                    boolean fireAndForgetTeleport = fireAndForgetTeleportCheckbox.isSelected();
                     long timeout = timeoutSpinner.getValue();
 
-                    PluginPatcher patcher = new PluginPatcher(patcherLogger, null, failFast, aggressiveOpt, fireAndForget, timeout);
+                    PluginPatcher patcher = new PluginPatcher(patcherLogger, null, failFast, aggressiveOpt, fireAndForget, fireAndForgetTeleport, timeout);
                     patcher.patchPlugin(file, output);
 
                     successCount.incrementAndGet();

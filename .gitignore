@@ -4,6 +4,8 @@
 /patched-plugins/
 *.jar
 patched-jar-contents/
+*.class
+patched-*/
 
 # Maven
 target/

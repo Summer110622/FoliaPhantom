@@ -7,11 +7,8 @@
 package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
-import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
-import org.objectweb.asm.MethodVisitor;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
+import com.patch.foliaphantom.core.transformer.ClassTransformer;
+import org.objectweb.asm.*;
 import org.objectweb.asm.commons.AdviceAdapter;
 import java.util.logging.Logger;
 
@@ -38,6 +35,7 @@ public class TeleportTransformer implements ClassTransformer {
 
     private static class TeleportClassVisitor extends ClassVisitor {
         private String className;
+        private boolean isPluginClass;
         private String pluginFieldName;
         private String pluginFieldDesc;
         private final String patcherPath;
@@ -52,6 +50,7 @@ public class TeleportTransformer implements ClassTransformer {
         @Override
         public void visit(int version, int access, String name, String sig, String superName, String[] interfaces) {
             this.className = name;
+            this.isPluginClass = "org/bukkit/plugin/java/JavaPlugin".equals(superName);
             super.visit(version, access, name, sig, superName, interfaces);
         }
 
@@ -67,10 +66,10 @@ public class TeleportTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            if (pluginFieldName == null) {
-                return mv;
+            if (!isPluginClass && pluginFieldName == null) {
+                return mv; // Neither the plugin class nor contains a plugin field
             }
-            return new TeleportMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc);
+            return new TeleportMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc, isPluginClass);
         }
     }
 
@@ -79,37 +78,50 @@ public class TeleportTransformer implements ClassTransformer {
         private final String pluginFieldOwner;
         private final String pluginFieldName;
         private final String pluginFieldDesc;
+        private final boolean isPluginClass;
 
         protected TeleportMethodVisitor(MethodVisitor mv, int access, String name, String desc,
-                String patcherPath, String owner, String pfn, String pfd) {
+                String patcherPath, String owner, String pfn, String pfd, boolean isPluginClass) {
             super(Opcodes.ASM9, mv, access, name, desc);
             this.patcherPath = patcherPath;
             this.pluginFieldOwner = owner;
             this.pluginFieldName = pfn;
             this.pluginFieldDesc = pfd;
+            this.isPluginClass = isPluginClass;
+        }
+
+        private void loadPluginInstance() {
+            loadThis(); // Load the current class instance (`this`)
+            if (!isPluginClass) {
+                // If the current class is not the plugin, get the plugin field from it
+                getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, Type.getType(pluginFieldDesc));
+            }
+            // If it is the plugin class, `this` is already the plugin instance we need.
         }
 
         @Override
         public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            if ("org/bukkit/entity/Player".equals(owner) && "teleport".equals(name) && "(Lorg/bukkit/Location;)Z".equals(desc)) {
+            if (opcode == INVOKEINTERFACE && "org/bukkit/entity/Player".equals(owner) && "teleport".equals(name) && "(Lorg/bukkit/Location;)Z".equals(desc)) {
                 String patcherOwner = patcherPath + "/" + PATCHER_CLASS;
+
                 // Stack: [player, location]
-                int locLocal = newLocal(Type.getType("Lorg/bukkit/Location;"));
-                storeLocal(locLocal);
-                int playerLocal = newLocal(Type.getType("Lorg/bukkit/entity/Player;"));
-                storeLocal(playerLocal);
+                int locVar = newLocal(Type.getType("Lorg/bukkit/Location;"));
+                storeLocal(locVar); // Location is now in a local var
+                int playerVar = newLocal(Type.getType("Lorg/bukkit/entity/Player;"));
+                storeLocal(playerVar); // Player is now in a local var
 
-                // Stack: []
-                loadThis();
-                getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, Type.getType(pluginFieldDesc));
-                loadLocal(playerLocal);
-                loadLocal(locLocal);
+                // Load the arguments for the static `safeTeleport` call.
+                loadPluginInstance(); // `this` or `this.plugin`
+                loadLocal(playerVar);   // player
+                loadLocal(locVar);      // location
 
-                // Stack: [plugin, player, location]
-                String newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;)Z";
-                super.visitMethodInsn(INVOKESTATIC, patcherOwner, "safeTeleport", newDesc, false);
-                return;
+                // Unconditionally call the safeTeleport method.
+                // The logic to fire-and-forget is now entirely within FoliaPatcher.
+                visitMethodInsn(INVOKESTATIC, patcherOwner, "safeTeleport", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;)Z", false);
+
+                return; // Instruction handled.
             }
+
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);
         }
     }

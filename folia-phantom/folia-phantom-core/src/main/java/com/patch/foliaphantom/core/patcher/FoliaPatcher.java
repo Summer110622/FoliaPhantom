@@ -77,6 +77,12 @@ public final class FoliaPatcher {
     public static final boolean FIRE_AND_FORGET = false;
 
     /**
+     * If true, teleport calls will not block and wait for completion.
+     * This field is set dynamically at patch time via ASM.
+     */
+    public static final boolean FIRE_AND_FORGET_TELEPORT = false;
+
+    /**
      * The timeout in milliseconds for API calls that block for a result.
      * This field is set dynamically at patch time via ASM.
      */
@@ -122,37 +128,6 @@ public final class FoliaPatcher {
         }
     }
 
-    /**
-     * Safely gets all players in a world.
-     */
-    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getPlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getPlayers());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
-    }
 
     /**
      * Internal wrapper for Folia's ChunkGenerator.
@@ -614,24 +589,25 @@ public final class FoliaPatcher {
     public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Player player, Location location) {
         if (Bukkit.isPrimaryThread()) {
             return player.teleport(location);
-        } else {
-            if (FIRE_AND_FORGET) {
-                player.teleportAsync(location);
-                return true;
+        }
+
+        if (FIRE_AND_FORGET_TELEPORT || FIRE_AND_FORGET) {
+            player.teleportAsync(location);
+            return true;
+        }
+
+        // Default behavior: teleport and wait for the result.
+        try {
+            return player.teleportAsync(location).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+            return false;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to teleport player " + player.getName(), e);
             }
-            try {
-                // We use teleportAsync and wait for it to complete.
-                return player.teleportAsync(location).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to teleport player " + player.getName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
-                return false;
-            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+            return false;
         }
     }
 

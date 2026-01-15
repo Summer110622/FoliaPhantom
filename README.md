@@ -81,5 +81,5 @@ mvn clean package
 ---
 
 ### 📄 License
-Licensed under the **MARV License**. See `LICENSE` for more details.
+Licensed under the **MIT License**. See `LICENSE` for more details.
 Copyright © 2025 **Marv**.

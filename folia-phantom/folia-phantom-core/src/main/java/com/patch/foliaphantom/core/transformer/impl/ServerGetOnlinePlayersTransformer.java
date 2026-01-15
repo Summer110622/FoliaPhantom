@@ -4,24 +4,25 @@
  * Copyright (c) 2025 Marv
  * Licensed under MARV License
  */
-
 package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.commons.AdviceAdapter;
 
 import java.util.logging.Logger;
 
 /**
- * Optimizes {@code .getOnlinePlayers().size()} calls to {@code .getPlayerCount()}.
- * This is a performance optimization to avoid creating an unnecessary list copy.
+ * Transforms {@code Server#getOnlinePlayers()} calls to a thread-safe equivalent
+ * in {@code FoliaPatcher}. This ensures that plugins accessing the player list
+ * from asynchronous threads do not cause concurrency issues.
  */
 public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
 
     private final Logger logger;
-    private final String relocatedPatcherPath; // Not used but part of the interface
+    private final String relocatedPatcherPath;
 
     public ServerGetOnlinePlayersTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
@@ -30,87 +31,93 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
 
     @Override
     public ClassVisitor createVisitor(ClassVisitor classVisitor) {
-        return new ServerClassVisitor(classVisitor);
+        return new ServerGetOnlinePlayersClassVisitor(classVisitor);
     }
 
-    private class ServerClassVisitor extends ClassVisitor {
-        public ServerClassVisitor(ClassVisitor classVisitor) {
-            super(Opcodes.ASM9, classVisitor);
+    private class ServerGetOnlinePlayersClassVisitor extends ClassVisitor {
+        private String className;
+        private boolean isJavaPlugin;
+        private String pluginField;
+        private String pluginFieldType; // To store descriptor like "Lorg/bukkit/plugin/Plugin;"
+
+        public ServerGetOnlinePlayersClassVisitor(ClassVisitor cv) {
+            super(Opcodes.ASM9, cv);
+        }
+
+        @Override
+        public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+            this.className = name;
+            this.isJavaPlugin = "org/bukkit/plugin/java/JavaPlugin".equals(superName);
+            super.visit(version, access, name, signature, superName, interfaces);
+        }
+
+        @Override
+        public org.objectweb.asm.FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            if (descriptor.equals("Lorg/bukkit/plugin/Plugin;") || descriptor.equals("Lorg/bukkit/plugin/java/JavaPlugin;")) {
+                this.pluginField = name;
+                this.pluginFieldType = descriptor;
+            }
+            return super.visitField(access, name, descriptor, signature, value);
         }
 
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-            return new GetOnlinePlayersMethodVisitor(mv);
-        }
-    }
-
-    private class GetOnlinePlayersMethodVisitor extends MethodVisitor {
-        private boolean getOnlinePlayersCallPending = false;
-
-        public GetOnlinePlayersMethodVisitor(MethodVisitor methodVisitor) {
-            super(Opcodes.ASM9, methodVisitor);
-        }
-
-        private void flushPending() {
-            if (getOnlinePlayersCallPending) {
-                // Write the original getOnlinePlayers instruction that we skipped
-                super.visitMethodInsn(Opcodes.INVOKEINTERFACE, "org/bukkit/Server", "getOnlinePlayers", "()Ljava/util/Collection;", true);
-                getOnlinePlayersCallPending = false;
+            // We need a plugin instance to make the safe call. If this class is not a plugin
+            // and does not contain a plugin field, we cannot transform it.
+            if (isJavaPlugin || pluginField != null) {
+                return new GetOnlinePlayersMethodVisitor(mv, access, name, descriptor);
             }
+            return mv;
         }
 
-        @Override
-        public void visitMethodInsn(int opcode, String owner, String name, String descriptor, boolean isInterface) {
-            if (getOnlinePlayersCallPending &&
-                    opcode == Opcodes.INVOKEINTERFACE &&
-                    "java/util/Collection".equals(owner) &&
-                    "size".equals(name) &&
-                    "()I".equals(descriptor)) {
+        private class GetOnlinePlayersMethodVisitor extends AdviceAdapter {
+            GetOnlinePlayersMethodVisitor(MethodVisitor mv, int access, String name, String desc) {
+                super(Opcodes.ASM9, mv, access, name, desc);
+            }
 
-                // Pattern matched: getOnlinePlayers().size()
-                // Replace with getPlayerCount()
-                super.visitMethodInsn(Opcodes.INVOKEINTERFACE, "org/bukkit/Server", "getPlayerCount", "()I", true);
-                getOnlinePlayersCallPending = false;
-            } else {
-                // Not a match or no pending call. Flush any pending call first.
-                flushPending();
-
-                // Then check if the current instruction is the start of our pattern.
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
                 if (opcode == Opcodes.INVOKEINTERFACE &&
-                        "org/bukkit/Server".equals(owner) &&
-                        "getOnlinePlayers".equals(name) &&
-                        "()Ljava/util/Collection;".equals(descriptor)) {
+                    "org/bukkit/Server".equals(owner) &&
+                    "getOnlinePlayers".equals(name) &&
+                    "()Ljava/util/Collection;".equals(desc)) {
 
-                    // This is the start of our pattern. Set the flag and DON'T visit yet.
-                    getOnlinePlayersCallPending = true;
+                    logger.fine("[ServerGetOnlinePlayersTransformer] Transforming " + owner + "#" + name + " in " + className);
+
+                    // The original call `Bukkit.getServer().getOnlinePlayers()` leaves a Server instance on the stack.
+                    // We need to pop it because our static helper doesn't need it.
+                    pop();
+
+                    // Load the plugin instance onto the stack.
+                    loadPluginInstance();
+
+                    // Call our static helper method.
+                    super.visitMethodInsn(
+                        Opcodes.INVOKESTATIC,
+                        relocatedPatcherPath + "/FoliaPatcher",
+                        "safeGetOnlinePlayers",
+                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/Collection;",
+                        false
+                    );
                 } else {
-                    // Not the start of the pattern, just a regular instruction.
-                    super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
+                    super.visitMethodInsn(opcode, owner, name, desc, itf);
+                }
+            }
+
+            private void loadPluginInstance() {
+                if (isJavaPlugin) {
+                    // If the class is a subclass of JavaPlugin, `this` is the plugin instance.
+                    visitVarInsn(ALOAD, 0); // this
+                } else if (pluginField != null) {
+                    // If the class holds a reference to the plugin in a field, load it.
+                    visitVarInsn(ALOAD, 0); // this
+                    visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
+                } else {
+                    // This case should be prevented by the check in visitMethod.
+                    throw new IllegalStateException("Cannot transform getOnlinePlayers call in " + className + ": No plugin instance found.");
                 }
             }
         }
-
-        // We must override all other instruction visiting methods to flush any pending call.
-        // This ensures that if another instruction comes between getOnlinePlayers() and size(),
-        // the original getOnlinePlayers() call is correctly written.
-
-        @Override public void visitInsn(int opcode) { flushPending(); super.visitInsn(opcode); }
-        @Override public void visitIntInsn(int opcode, int operand) { flushPending(); super.visitIntInsn(opcode, operand); }
-        @Override public void visitVarInsn(int opcode, int var) { flushPending(); super.visitVarInsn(opcode, var); }
-        @Override public void visitTypeInsn(int opcode, String type) { flushPending(); super.visitTypeInsn(opcode, type); }
-        @Override public void visitFieldInsn(int opcode, String owner, String name, String descriptor) { flushPending(); super.visitFieldInsn(opcode, owner, name, descriptor); }
-        @Override public void visitInvokeDynamicInsn(String name, String descriptor, org.objectweb.asm.Handle bootstrapMethodHandle, Object... bootstrapMethodArguments) { flushPending(); super.visitInvokeDynamicInsn(name, descriptor, bootstrapMethodHandle, bootstrapMethodArguments); }
-        @Override public void visitJumpInsn(int opcode, org.objectweb.asm.Label label) { flushPending(); super.visitJumpInsn(opcode, label); }
-        @Override public void visitLabel(org.objectweb.asm.Label label) { flushPending(); super.visitLabel(label); }
-        @Override public void visitLdcInsn(Object value) { flushPending(); super.visitLdcInsn(value); }
-        @Override public void visitIincInsn(int var, int increment) { flushPending(); super.visitIincInsn(var, increment); }
-        @Override public void visitTableSwitchInsn(int min, int max, org.objectweb.asm.Label dflt, org.objectweb.asm.Label... labels) { flushPending(); super.visitTableSwitchInsn(min, max, dflt, labels); }
-        @Override public void visitLookupSwitchInsn(org.objectweb.asm.Label dflt, int[] keys, org.objectweb.asm.Label[] labels) { flushPending(); super.visitLookupSwitchInsn(dflt, keys, labels); }
-        @Override public void visitMultiANewArrayInsn(String descriptor, int numDimensions) { flushPending(); super.visitMultiANewArrayInsn(descriptor, numDimensions); }
-        @Override public void visitEnd() { flushPending(); super.visitEnd(); }
-        @Override public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) { flushPending(); super.visitFrame(type, numLocal, local, numStack, stack); }
-        @Override public void visitLineNumber(int line, org.objectweb.asm.Label start) { flushPending(); super.visitLineNumber(line, start); }
-        @Override public void visitMaxs(int maxStack, int maxLocals) { flushPending(); super.visitMaxs(maxStack, maxLocals); }
     }
 }

@@ -123,38 +123,6 @@ public final class FoliaPatcher {
     }
 
     /**
-     * Safely gets all players in a world.
-     */
-    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getPlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getPlayers());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
-    }
-
-    /**
      * Internal wrapper for Folia's ChunkGenerator.
      */
     public static class FoliaChunkGenerator extends org.bukkit.generator.ChunkGenerator {
@@ -330,6 +298,71 @@ public final class FoliaPatcher {
 
     // --- BukkitRunnable Instance Method Wrappers ---
 
+    /**
+     * Safely gets all players in a world.
+     */
+    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getPlayers();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(world.getPlayers());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
+     * Safely gets the online players from the server.
+     * This is a global operation, so it uses the global region scheduler.
+     */
+    public static java.util.Collection<? extends org.bukkit.entity.Player> safeGetOnlinePlayers(Plugin plugin) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getServer().getOnlinePlayers();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.Collection<? extends org.bukkit.entity.Player>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getServer().getOnlinePlayers());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get online players.", e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get online players.", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting online players.", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
     public static BukkitTask runTask_onRunnable(Runnable runnable, Plugin plugin) {
         return runTask(plugin, runnable);
     }
@@ -463,38 +496,6 @@ public final class FoliaPatcher {
                 throw new FoliaPatcherTimeoutException("Failed to get living entities for world " + world.getName(), e);
             }
             LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting living entities for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
-    }
-
-    /**
-     * Safely gets all players in a world.
-     */
-    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getPlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getPlayers());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
             return java.util.Collections.emptyList();
         }
     }

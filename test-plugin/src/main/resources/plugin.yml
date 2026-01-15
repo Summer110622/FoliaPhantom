@@ -1,4 +1,11 @@
 name: TestPlugin
 version: 1.0
-main: com.example.testplugin.TestPlugin
+main: TestPlugin
 api-version: 1.17
+commands:
+  testremove:
+    description: "Tests removing a nearby entity."
+    usage: "/testremove"
+  testtimeout:
+    description: "Tests the API timeout functionality."
+    usage: "/testtimeout"

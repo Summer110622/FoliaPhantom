@@ -1,27 +1,28 @@
 /*
  * Folia Phantom - World#getPlayers() Transformer
  *
- * Copyright (c) 2024 Marv
+ * Copyright (c) 2025 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.ClassVisitor;
-import org.objectweb.asm.FieldVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.AdviceAdapter;
+
 import java.util.logging.Logger;
 
+/**
+ * Transforms {@code World#getPlayers()} calls to a thread-safe equivalent
+ * in {@code FoliaPatcher}. This ensures that plugins accessing the player list
+ * of a world from asynchronous threads do not cause concurrency issues.
+ */
 public class WorldGetPlayersTransformer implements ClassTransformer {
+
     private final Logger logger;
     private final String relocatedPatcherPath;
-    private static final String PATCHER_CLASS = "FoliaPatcher";
-    private static final String PLUGIN_DESC = "Lorg/bukkit/plugin/Plugin;";
-    private static final String JAVA_PLUGIN_DESC = "Lorg/bukkit/plugin/java/JavaPlugin;";
-    private static final String JAVA_PLUGIN_SUPER = "org/bukkit/plugin/java/JavaPlugin";
 
     public WorldGetPlayersTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
@@ -29,96 +30,95 @@ public class WorldGetPlayersTransformer implements ClassTransformer {
     }
 
     @Override
-    public ClassVisitor createVisitor(ClassVisitor next) {
-        return new WorldGetPlayersClassVisitor(next, relocatedPatcherPath, logger);
+    public ClassVisitor createVisitor(ClassVisitor classVisitor) {
+        return new WorldGetPlayersClassVisitor(classVisitor);
     }
 
-    private static class WorldGetPlayersClassVisitor extends ClassVisitor {
+    private class WorldGetPlayersClassVisitor extends ClassVisitor {
         private String className;
-        private String pluginFieldName;
-        private String pluginFieldDesc;
-        private boolean isPluginClass = false;
-        private final String patcherPath;
-        private final Logger logger;
+        private boolean isJavaPlugin;
+        private String pluginField;
+        private String pluginFieldType;
 
-        public WorldGetPlayersClassVisitor(ClassVisitor cv, String patcherPath, Logger logger) {
+        public WorldGetPlayersClassVisitor(ClassVisitor cv) {
             super(Opcodes.ASM9, cv);
-            this.patcherPath = patcherPath;
-            this.logger = logger;
         }
 
         @Override
-        public void visit(int version, int access, String name, String sig, String superName, String[] interfaces) {
+        public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
             this.className = name;
-            if (superName != null && superName.equals(JAVA_PLUGIN_SUPER)) {
-                this.isPluginClass = true;
-            }
-            super.visit(version, access, name, sig, superName, interfaces);
+            this.isJavaPlugin = "org/bukkit/plugin/java/JavaPlugin".equals(superName);
+            super.visit(version, access, name, signature, superName, interfaces);
         }
 
         @Override
-        public FieldVisitor visitField(int access, String name, String desc, String sig, Object val) {
-            if (pluginFieldName == null && (desc.equals(PLUGIN_DESC) || desc.equals(JAVA_PLUGIN_DESC))) {
-                this.pluginFieldName = name;
-                this.pluginFieldDesc = desc;
+        public org.objectweb.asm.FieldVisitor visitField(int access, String name, String descriptor, String signature, Object value) {
+            if (descriptor.equals("Lorg/bukkit/plugin/Plugin;") || descriptor.equals("Lorg/bukkit/plugin/java/JavaPlugin;")) {
+                this.pluginField = name;
+                this.pluginFieldType = descriptor;
             }
-            return super.visitField(access, name, desc, sig, val);
+            return super.visitField(access, name, descriptor, signature, value);
         }
 
         @Override
-        public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
-            MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            if (pluginFieldName == null && !isPluginClass) {
-                 // We can't find a plugin instance, so don't transform anything.
-                return mv;
+        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+            MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+            if (isJavaPlugin || pluginField != null) {
+                return new GetPlayersMethodVisitor(mv, access, name, descriptor);
             }
-            return new WorldGetPlayersMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc, isPluginClass);
-        }
-    }
-
-    private static class WorldGetPlayersMethodVisitor extends AdviceAdapter {
-        private final String patcherPath;
-        private final String pluginFieldOwner;
-        private final String pluginFieldName;
-        private final String pluginFieldDesc;
-        private final boolean isPluginClass;
-
-        protected WorldGetPlayersMethodVisitor(MethodVisitor mv, int access, String name, String desc,
-                String patcherPath, String owner, String pfn, String pfd, boolean isPlugin) {
-            super(Opcodes.ASM9, mv, access, name, desc);
-            this.patcherPath = patcherPath;
-            this.pluginFieldOwner = owner;
-            this.pluginFieldName = pfn;
-            this.pluginFieldDesc = pfd;
-            this.isPluginClass = isPlugin;
+            return mv;
         }
 
-        @Override
-        public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-            if (opcode == Opcodes.INVOKEINTERFACE &&
-                "org/bukkit/World".equals(owner) &&
-                "getPlayers".equals(name) &&
-                "()Ljava/util/List;".equals(desc)) {
+        private class GetPlayersMethodVisitor extends AdviceAdapter {
+            GetPlayersMethodVisitor(MethodVisitor mv, int access, String name, String desc) {
+                super(Opcodes.ASM9, mv, access, name, desc);
+            }
 
-                String patcherOwner = patcherPath + "/" + PATCHER_CLASS;
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                if (opcode == Opcodes.INVOKEINTERFACE &&
+                    "org/bukkit/World".equals(owner) &&
+                    "getPlayers".equals(name) &&
+                    "()Ljava/util/List;".equals(desc)) {
 
-                int worldLocal = newLocal(Type.getType("Lorg/bukkit/World;"));
-                storeLocal(worldLocal);
+                    logger.fine("[WorldGetPlayersTransformer] Transforming " + owner + "#" + name + " in " + className);
 
-                if (isPluginClass) {
-                    loadThis(); // 'this' is the plugin instance
+                    // The original call leaves a World instance on the stack.
+                    // The safeGetPlayers method needs this, but it also needs a plugin instance.
+                    // Stack before: [..., world]
+                    // We need to transform it to: [..., plugin, world]
+
+                    // Load the plugin instance onto the stack.
+                    loadPluginInstance();
+                    // Now stack is: [..., world, plugin]
+
+                    // Swap the top two elements to get the correct order for the static call
+                    swap();
+                    // Now stack is: [..., plugin, world]
+
+                    // Call our static helper method.
+                    super.visitMethodInsn(
+                        Opcodes.INVOKESTATIC,
+                        relocatedPatcherPath + "/FoliaPatcher",
+                        "safeGetPlayers",
+                        "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;",
+                        false
+                    );
                 } else {
-                    loadThis();
-                    getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, Type.getType(pluginFieldDesc));
+                    super.visitMethodInsn(opcode, owner, name, desc, itf);
                 }
-
-                loadLocal(worldLocal);
-
-                String newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;";
-                super.visitMethodInsn(INVOKESTATIC, patcherOwner, "safeGetPlayers", newDesc, false);
-                return;
             }
-            super.visitMethodInsn(opcode, owner, name, desc, isInterface);
+
+            private void loadPluginInstance() {
+                if (isJavaPlugin) {
+                    visitVarInsn(ALOAD, 0); // this
+                } else if (pluginField != null) {
+                    visitVarInsn(ALOAD, 0); // this
+                    visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
+                } else {
+                    throw new IllegalStateException("Cannot transform getPlayers call in " + className + ": No plugin instance found.");
+                }
+            }
         }
     }
 }

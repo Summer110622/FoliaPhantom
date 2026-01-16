@@ -94,6 +94,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "getLivingEntities":
                             case "getPlayers":
                             case "getNearbyEntities":
+                            case "getHighestBlockAt":
                                 needsPatching = true;
                                 break;
                         }

@@ -132,6 +132,39 @@ public final class FoliaPatcher {
     }
 
     /**
+     * Safely gets the highest block at a given location.
+     */
+    public static Block safeGetHighestBlockAt(Plugin plugin, World world, int x, int z) {
+        if (Bukkit.isPrimaryThread()) {
+            return world.getHighestBlockAt(x, z);
+        } else {
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
+            CompletableFuture<Block> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, world, x, z, task -> {
+                try {
+                    future.complete(world.getHighestBlockAt(x, z));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            });
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get highest block at " + x + ", " + z, e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to get highest block at " + x + ", " + z, e);
+                }
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting highest block at " + x + ", " + z, e);
+                return null;
+            }
+        }
+    }
+
+    /**
      * Internal wrapper for Folia's ChunkGenerator.
      */
     public static class FoliaChunkGenerator extends org.bukkit.generator.ChunkGenerator {

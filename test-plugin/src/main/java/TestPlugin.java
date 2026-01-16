@@ -69,6 +69,24 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testhighestblock")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing getHighestBlockAt from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeGetHighestBlockAt helper.
+                        org.bukkit.block.Block highestBlock = player.getWorld().getHighestBlockAt(player.getLocation().getBlockX(), player.getLocation().getBlockZ());
+                        sender.sendMessage("Success! Highest block at your location is: " + highestBlock.getType());
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during getHighestBlockAt test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

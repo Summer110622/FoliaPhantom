@@ -9,3 +9,6 @@ commands:
   testtimeout:
     description: "Tests the API timeout functionality."
     usage: "/testtimeout"
+  testgetonlineplayers:
+    description: "Tests the getOnlinePlayers transformation."
+    usage: "/testgetonlineplayers"

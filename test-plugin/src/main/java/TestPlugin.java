@@ -23,6 +23,21 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testgetonlineplayers")) {
+            sender.sendMessage("Testing getOnlinePlayers by calling it from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    // This call will be transformed to use the safeGetOnlinePlayers helper.
+                    int playerCount = Bukkit.getOnlinePlayers().size();
+                    sender.sendMessage("Success! Found " + playerCount + " online players via async call.");
+                } catch (Exception e) {
+                    getLogger().severe("Caught unexpected exception during getOnlinePlayers test: " + e.getClass().getName());
+                    e.printStackTrace();
+                }
+            });
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("testtimeout")) {
             sender.sendMessage("Testing timeout by calling a blocking API from an async thread...");
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {

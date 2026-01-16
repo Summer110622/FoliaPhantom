@@ -1,9 +1,9 @@
 /*
  * Folia Phantom - Plugin Patcher Core
- * 
+ *
  * This module provides the core bytecode transformation logic for converting
  * Bukkit plugins to be compatible with Folia's region-based threading model.
- * 
+ *
  * Copyright (c) 2025 Marv
  * Licensed under MARV License
  */
@@ -13,6 +13,7 @@ import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
+import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
@@ -29,6 +30,7 @@ import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.FieldVisitor;
+import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.ClassRemapper;
 import org.objectweb.asm.commons.SimpleRemapper;
@@ -46,8 +48,10 @@ import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
@@ -58,13 +62,13 @@ import java.util.stream.Stream;
 
 /**
  * Main plugin patching utility for Folia Phantom.
- * 
+ *
  * <p>
  * This class orchestrates the transformation of Bukkit plugin JAR files,
  * replacing thread-unsafe API calls with Folia-compatible alternatives using
  * ASM bytecode manipulation.
  * </p>
- * 
+ *
  * <h2>Features</h2>
  * <ul>
  * <li>Parallel class transformation using ForkJoinPool</li>
@@ -73,15 +77,15 @@ import java.util.stream.Stream;
  * <li>Bundle FoliaPatcher runtime classes into output JAR</li>
  * <li>Fast-fail scanning to skip classes that don't need patching</li>
  * </ul>
- * 
+ *
  * <h2>Usage Example</h2>
- * 
+ *
  * <pre>{@code
  * Logger logger = Logger.getLogger("FoliaPhantom");
  * PluginPatcher patcher = new PluginPatcher(logger);
  * patcher.patchPlugin(inputJar, outputJar);
  * }</pre>
- * 
+ *
  * @author Marv
  * @version 1.0.0
  */
@@ -107,6 +111,9 @@ public class PluginPatcher {
 
     /** API call timeout in milliseconds */
     private final long apiTimeoutMs;
+
+    /** Set of event class names to be handled with fire-and-forget */
+    private final Set<String> fireAndForgetEvents;
 
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
@@ -140,25 +147,30 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs, Set<String> fireAndForgetEvents) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
         this.aggressiveEventOptimization = aggressiveEventOptimization;
         this.fireAndForget = fireAndForget;
         this.apiTimeoutMs = apiTimeoutMs;
+        this.fireAndForgetEvents = fireAndForgetEvents != null ? fireAndForgetEvents : Collections.emptySet();
+    }
+
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, apiTimeoutMs, null);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, 100L);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, 100L, null);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false, 100L);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, false, 100L, null);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout) {
-        this(logger, progressListener, failFastOnTimeout, false, false, 100L);
+        this(logger, progressListener, failFastOnTimeout, false, false, 100L, null);
     }
 
     /**
@@ -168,7 +180,7 @@ public class PluginPatcher {
      * @param progressListener Listener for real-time progress updates
      */
     public PluginPatcher(Logger logger, PatchProgressListener progressListener) {
-        this(logger, progressListener, false, false, false, 100L);
+        this(logger, progressListener, false, false, false, 100L, null);
     }
 
     /**
@@ -177,12 +189,12 @@ public class PluginPatcher {
      * @param logger Logger for outputting patching progress and diagnostics
      */
     public PluginPatcher(Logger logger) {
-        this(logger, null, false, false, false, 100L);
+        this(logger, null, false, false, false, 100L, null);
     }
 
     /**
      * Patches a plugin JAR file for Folia compatibility.
-     * 
+     *
      * <p>
      * This method:
      * </p>
@@ -194,7 +206,7 @@ public class PluginPatcher {
      * <li>Bundles FoliaPatcher runtime classes</li>
      * <li>Writes the patched JAR to the output location</li>
      * </ol>
-     * 
+     *
      * @param originalJar Source JAR file to patch
      * @param outputJar   Destination for the patched JAR
      * @throws IOException If an I/O error occurs during patching
@@ -232,6 +244,7 @@ public class PluginPatcher {
             transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
+            transformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 
@@ -420,6 +433,36 @@ public class PluginPatcher {
 
                             super.visitEnd();
                         }
+
+                        @Override
+                        public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
+                            MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+                            // Inject the event set initialization in the static initializer
+                            if (name.equals("<clinit>")) {
+                                return new MethodVisitor(Opcodes.ASM9, mv) {
+                                    @Override
+                                    public void visitCode() {
+                                        super.visitCode();
+                                        // Create a new HashSet
+                                        super.visitTypeInsn(Opcodes.NEW, "java/util/HashSet");
+                                        super.visitInsn(Opcodes.DUP);
+                                        super.visitMethodInsn(Opcodes.INVOKESPECIAL, "java/util/HashSet", "<init>", "()V", false);
+
+                                        // Add elements to the set
+                                        for (String eventName : fireAndForgetEvents) {
+                                            super.visitInsn(Opcodes.DUP);
+                                            super.visitLdcInsn(eventName);
+                                            super.visitMethodInsn(Opcodes.INVOKEINTERFACE, "java/util/Set", "add", "(Ljava/lang/Object;)Z", true);
+                                            super.visitInsn(Opcodes.POP); // Pop the boolean result of add
+                                        }
+
+                                        // Store the set in the static field
+                                        super.visitFieldInsn(Opcodes.PUTSTATIC, relocatedPatcherPath + "/FoliaPatcher", "FIRE_AND_FORGET_EVENTS", "Ljava/util/Set;");
+                                    }
+                                };
+                            }
+                            return mv;
+                        }
                     };
                 }
 
@@ -433,13 +476,13 @@ public class PluginPatcher {
 
     /**
      * Patches a single class using the registered transformers.
-     * 
+     *
      * <p>
      * Uses a fast-fail heuristic: first scans the class to determine
      * if any patching is needed. If not, returns the original bytes
      * immediately without full transformation.
      * </p>
-     * 
+     *
      * @param originalBytes The original class bytecode
      * @param className     The class name (for logging)
      * @return The patching result containing transformed bytes
@@ -479,7 +522,7 @@ public class PluginPatcher {
 
     /**
      * Adds or updates the folia-supported flag in plugin.yml.
-     * 
+     *
      * @param pluginYml Original plugin.yml content
      * @return Modified plugin.yml content
      */
@@ -539,7 +582,7 @@ public class PluginPatcher {
 
     /**
      * Returns the current patching statistics.
-     * 
+     *
      * @return Array of [scanned, transformed, skipped]
      */
     public int[] getStatistics() {

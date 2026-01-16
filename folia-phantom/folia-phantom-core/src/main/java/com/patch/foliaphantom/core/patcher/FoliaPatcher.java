@@ -28,10 +28,13 @@ import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
+import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.Collections;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -81,6 +84,12 @@ public final class FoliaPatcher {
      * This field is set dynamically at patch time via ASM.
      */
     public static final long API_TIMEOUT_MS = 100;
+
+    /**
+     * A set of event class names that should be fired asynchronously without waiting.
+     * This field is set dynamically at patch time via ASM.
+     */
+    private static final Set<String> FIRE_AND_FORGET_EVENTS = Collections.emptySet();
 
     private static final Logger LOGGER = Logger.getLogger("FoliaPhantom-Patcher");
     private static final ExecutorService worldGenExecutor = Executors.newSingleThreadExecutor(r -> {
@@ -1686,5 +1695,24 @@ public final class FoliaPatcher {
                 LOGGER.log(Level.SEVERE, "[FoliaPhantom] Failed to process event " + event.getEventName() + " synchronously.", e);
             }
         }
+    }
+
+    /**
+     * Safely calls a Bukkit event, providing an option for a "fire-and-forget"
+     * mechanism for performance-critical scenarios.
+     *
+     * @param pluginManager The plugin manager instance.
+     * @param event The event to be called.
+     */
+    public static void safeCallEvent(Plugin plugin, PluginManager pluginManager, Event event) {
+        // If fire-and-forget is enabled and the event is in the designated set,
+        // execute it asynchronously without waiting.
+        if (FIRE_AND_FORGET && FIRE_AND_FORGET_EVENTS.contains(event.getClass().getName())) {
+            Bukkit.getGlobalRegionScheduler().execute(plugin, () -> pluginManager.callEvent(event));
+            return;
+        }
+
+        // Otherwise, fall back to the existing safe event calling logic.
+        safeCallEvent(plugin, event);
     }
 }

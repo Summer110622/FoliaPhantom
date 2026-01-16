@@ -53,6 +53,22 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testplayers")) {
+            sender.sendMessage("Testing getOnlinePlayers size optimization and regular usage from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                // This should be optimized to safeGetOnlinePlayersSize
+                int playerCount = Bukkit.getServer().getOnlinePlayers().size();
+                sender.sendMessage("Optimized call successful! Player count: " + playerCount);
+
+                // This should be transformed to safeGetOnlinePlayers
+                for (Player p : Bukkit.getServer().getOnlinePlayers()) {
+                    getLogger().info("Found player: " + p.getName());
+                }
+                sender.sendMessage("Regular iteration call successful!");
+            });
+            return true;
+        }
+
         return false;
     }
 }

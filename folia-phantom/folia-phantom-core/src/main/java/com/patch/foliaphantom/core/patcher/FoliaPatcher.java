@@ -339,12 +339,35 @@ public final class FoliaPatcher {
         }
     }
 
+    public static int safeGetOnlinePlayersSize(final Plugin plugin) {
+        if (!isFolia()) {
+            return Bukkit.getOnlinePlayers().size();
+        }
+        if (FIRE_AND_FORGET) {
+            return 0;
+        }
+        CompletableFuture<Integer> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getOnlinePlayers().size());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to get online players size", e);
+            return 0;
+        }
+    }
+
     /**
      * Safely gets the online players from the server.
      * This is a global operation, so it uses the global region scheduler.
      */
     public static java.util.Collection<? extends org.bukkit.entity.Player> safeGetOnlinePlayers(Plugin plugin) {
-        if (Bukkit.isPrimaryThread()) {
+        if (!isFolia()) {
             return Bukkit.getServer().getOnlinePlayers();
         }
         if (FIRE_AND_FORGET) {
@@ -353,22 +376,36 @@ public final class FoliaPatcher {
         CompletableFuture<java.util.Collection<? extends org.bukkit.entity.Player>> future = new CompletableFuture<>();
         Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
             try {
-                future.complete(Bukkit.getServer().getOnlinePlayers());
+                future.complete(new java.util.ArrayList<>(Bukkit.getServer().getOnlinePlayers()));
             } catch (Exception e) {
                 future.completeExceptionally(e);
             }
         });
         try {
             return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get online players.", e);
+        } catch (Exception e) {
+            handleException("Failed to get online players", e);
             return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
+        }
+    }
+
+    private static boolean isFolia() {
+        try {
+            Class.forName("io.papermc.paper.threadedregions.scheduler.RegionScheduler");
+            return true;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    private static void handleException(String message, Throwable e) {
+        if (e instanceof TimeoutException) {
             if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get online players.", e);
+                throw new FoliaPatcherTimeoutException(message, e);
             }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting online players.", e);
-            return java.util.Collections.emptyList();
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out: " + message, e);
+        } else {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed: " + message, e);
         }
     }
 

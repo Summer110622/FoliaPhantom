@@ -12,3 +12,6 @@ commands:
   testgetonlineplayers:
     description: "Tests the getOnlinePlayers transformation."
     usage: "/testgetonlineplayers"
+  testhighestblock:
+    description: "Tests the getHighestBlockAt transformation."
+    usage: "/testhighestblock"

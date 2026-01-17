@@ -23,6 +23,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
 
     private final Logger logger;
     private final String relocatedPatcherPath;
+    private boolean hasTransformed = false;
 
     public ServerGetOnlinePlayersTransformer(Logger logger, String relocatedPatcherPath) {
         this.logger = logger;
@@ -32,6 +33,15 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
     @Override
     public ClassVisitor createVisitor(ClassVisitor classVisitor) {
         return new ServerGetOnlinePlayersClassVisitor(classVisitor);
+    }
+
+    /**
+     * Checks if the transformer has made any changes to the class.
+     *
+     * @return {@code true} if a transformation was applied, {@code false} otherwise.
+     */
+    public boolean hasTransformed() {
+        return hasTransformed;
     }
 
     private class ServerGetOnlinePlayersClassVisitor extends ClassVisitor {
@@ -91,6 +101,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         "(Lorg/bukkit/plugin/Plugin;)Ljava/util/Collection;",
                         false
                     );
+                    hasTransformed = true;
                 }
             }
 
@@ -114,6 +125,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         false
                     );
                     seenGetOnlinePlayers = false;
+                    hasTransformed = true;
 
                 } else {
                     flushPendingGetOnlinePlayers();

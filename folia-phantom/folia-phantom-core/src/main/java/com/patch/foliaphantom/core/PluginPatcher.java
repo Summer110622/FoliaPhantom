@@ -4,7 +4,7 @@
  * This module provides the core bytecode transformation logic for converting
  * Bukkit plugins to be compatible with Folia's region-based threading model.
  *
- * Copyright (c) 2025 Marv
+ * Copyright (c) 2026 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core;
@@ -13,6 +13,7 @@ import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
+import com.patch.foliaphantom.core.transformer.impl.BlockTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
@@ -247,6 +248,7 @@ public class PluginPatcher {
             transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
             transformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
+            transformers.add(new BlockTransformer(logger, relocatedPatcherPath));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 

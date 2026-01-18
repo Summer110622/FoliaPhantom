@@ -1,4 +1,7 @@
 import org.bukkit.Bukkit;
+import org.bukkit.Material;
+import org.bukkit.block.Block;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Entity;
@@ -80,6 +83,31 @@ public class TestPlugin extends JavaPlugin {
                         sender.sendMessage("Success! Highest block at your location is: " + highestBlock.getType());
                     } catch (Exception e) {
                         getLogger().severe("Caught unexpected exception during getHighestBlockAt test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("testblock")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing Block transformations from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        Block block = player.getLocation().subtract(0, 1, 0).getBlock();
+
+                        // This call should be transformed to safeSetBlockType
+                        block.setType(Material.STONE);
+
+                        // This call should be transformed to safeSetBlockData
+                        BlockData data = block.getBlockData();
+                        block.setBlockData(data);
+
+                        sender.sendMessage("Success! Block at your feet was set to STONE.");
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during block test: " + e.getClass().getName());
                         e.printStackTrace();
                     }
                 });

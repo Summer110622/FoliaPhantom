@@ -15,3 +15,6 @@ commands:
   testhighestblock:
     description: "Tests the getHighestBlockAt transformation."
     usage: "/testhighestblock"
+  testblock:
+    description: "Tests the Block transformations."
+    usage: "/testblock"

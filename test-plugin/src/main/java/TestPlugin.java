@@ -87,6 +87,24 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testgettargetblock")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing getTargetBlock from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeGetTargetBlock helper.
+                        org.bukkit.block.Block targetBlock = player.getTargetBlock(null, 100);
+                        sender.sendMessage("Success! Your target block is: " + targetBlock.getType());
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during getTargetBlock test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

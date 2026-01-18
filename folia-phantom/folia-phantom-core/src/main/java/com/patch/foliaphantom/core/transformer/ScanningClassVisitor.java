@@ -77,6 +77,9 @@ public class ScanningClassVisitor extends ClassVisitor {
             if (INTERESTING_OWNERS.contains(owner)) {
                  // At this point, the owner is interesting. Check the method name for specifics.
                 switch (owner) {
+                    case "org/bukkit/entity/Player":
+                        if ("getTargetBlock".equals(name)) needsPatching = true;
+                        break;
                     case "org/bukkit/Server":
                         if ("getOnlinePlayers".equals(name)) needsPatching = true;
                         break;

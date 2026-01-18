@@ -1785,4 +1785,52 @@ public final class FoliaPatcher {
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
     }
+    /**
+     * Safely gets the target block for a player.
+     * This is a potentially expensive ray-tracing operation, so it's critical
+     * to run it on the player's region thread.
+     */
+    public static Block safeGetTargetBlock(org.bukkit.entity.Player player, Set<org.bukkit.Material> transparent, int maxDistance, Plugin plugin) {
+        if (Bukkit.isPrimaryThread()) {
+            Block targetBlock = player.getTargetBlock(transparent, maxDistance);
+            // Even on the main thread, the API can return null. Let's ensure we don't pass that on.
+            if (targetBlock == null) {
+                // To prevent NullPointerException in plugins that don't expect it,
+                // we could return the block at the player's feet as a fallback.
+                return player.getLocation().getBlock();
+            }
+            return targetBlock;
+        }
+
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+
+        CompletableFuture<Block> future = new CompletableFuture<>();
+        player.getScheduler().run(plugin, task -> {
+            try {
+                Block targetBlock = player.getTargetBlock(transparent, maxDistance);
+                if (targetBlock == null) {
+                    future.complete(player.getLocation().getBlock());
+                } else {
+                    future.complete(targetBlock);
+                }
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        }, null);
+
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get target block for " + player.getName(), e);
+            return player.getLocation().getBlock();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get target block for " + player.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting target block for " + player.getName(), e);
+            return player.getLocation().getBlock();
+        }
+    }
 }

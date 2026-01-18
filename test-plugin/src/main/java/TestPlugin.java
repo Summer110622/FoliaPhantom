@@ -23,6 +23,29 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testsetblock")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing setType from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeSetBlockType helper.
+                        org.bukkit.block.Block targetBlock = player.getTargetBlock(null, 5);
+                        if (targetBlock != null) {
+                            targetBlock.setType(org.bukkit.Material.STONE);
+                            sender.sendMessage("Success! Set the block you are looking at to stone.");
+                        } else {
+                            sender.sendMessage("You are not looking at a block.");
+                        }
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during setType test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("testgetonlineplayers")) {
             sender.sendMessage("Testing getOnlinePlayers by calling it from an async thread...");
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {

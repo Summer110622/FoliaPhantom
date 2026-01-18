@@ -628,6 +628,28 @@ public final class FoliaPatcher {
     }
 
     /**
+     * Safely sets the type of a block.
+     */
+    public static void safeSetBlockType(Plugin plugin, Block block, org.bukkit.Material material) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setType(material);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
+        }
+    }
+
+    /**
+     * Safely sets the block data for a block.
+     */
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
+        }
+    }
+
+    /**
      * Safely spawns an entity in the world at the given location.
      * If not on the main thread, this will schedule the spawn and block until it completes.
      */

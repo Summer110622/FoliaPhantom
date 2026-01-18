@@ -5,7 +5,7 @@
  * call at runtime. It bridges standard Bukkit/Paper API calls to Folia-specific
  * region-based or async schedulers.
  * 
- * Copyright (c) 2025 Marv
+ * Copyright (c) 2026 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core.patcher;
@@ -611,19 +611,25 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
+    /**
+     * Safely sets the block type (material) for a block.
+     */
+    public static void safeSetBlockType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
         } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
+            Bukkit.getRegionScheduler().execute(plugin, block.getLocation(), () -> block.setType(material));
         }
     }
 
-    public static void safeSetTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
+    /**
+     * Safely sets the block data for a block.
+     */
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
         if (Bukkit.isPrimaryThread()) {
-            block.setType(material, applyPhysics);
+            block.setBlockData(data);
         } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
+            Bukkit.getRegionScheduler().execute(plugin, block.getLocation(), () -> block.setBlockData(data));
         }
     }
 

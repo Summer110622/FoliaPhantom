@@ -1,7 +1,7 @@
 /*
  * Folia Phantom - Scanning Class Visitor
  *
- * Copyright (c) 2025 Marv
+ * Copyright (c) 2026 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core.transformer;

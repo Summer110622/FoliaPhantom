@@ -87,6 +87,24 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testteleport")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing teleport from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeTeleport helper.
+                        player.teleport(player.getLocation().add(0, 10, 0));
+                        sender.sendMessage("Success! Teleported you 10 blocks up.");
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during teleport test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

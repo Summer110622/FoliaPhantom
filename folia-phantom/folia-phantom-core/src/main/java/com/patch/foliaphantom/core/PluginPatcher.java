@@ -17,6 +17,7 @@ import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransforme
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
+import com.patch.foliaphantom.core.transformer.impl.PlayerHealthTransformer;
 import com.patch.foliaphantom.core.transformer.impl.InventoryTransformer;
 import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
@@ -240,6 +241,7 @@ public class PluginPatcher {
             transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
             transformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
+            transformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));
             transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));

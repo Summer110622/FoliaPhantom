@@ -611,7 +611,10 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetType(Plugin plugin, Block block, org.bukkit.Material material) {
+    /**
+     * Safely sets the block type for a block.
+     */
+    public static void safeSetBlockType(Plugin plugin, Block block, org.bukkit.Material material) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
         } else {
@@ -619,7 +622,10 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
+    /**
+     * Safely sets the block type for a block with physics control.
+     */
+    public static void safeSetBlockTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material, applyPhysics);
         } else {
@@ -667,7 +673,29 @@ public final class FoliaPatcher {
     /**
      * Safely sets the block data for a block.
      */
+    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
+        }
+    }
+
+    /**
+     * Safely sets the block data for a block.
+     */
     public static void safeSetBlockData(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            block.setBlockData(data, applyPhysics);
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
+        }
+    }
+
+    /**
+     * Safely sets the block data for a block with physics control.
+     */
+    public static void safeSetBlockDataWithPhysics(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             block.setBlockData(data, applyPhysics);
         } else {

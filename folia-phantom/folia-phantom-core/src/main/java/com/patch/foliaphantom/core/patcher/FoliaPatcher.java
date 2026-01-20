@@ -1596,6 +1596,44 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely gets the health of a player.
+     * If not on the main thread, this will schedule the call and block until it completes.
+     *
+     * @param plugin The plugin instance.
+     * @param player The player whose health to get.
+     * @return The player's health, or 0.0 if the operation times out or fails.
+     */
+    public static double safeGetHealth(Plugin plugin, org.bukkit.entity.Player player) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getHealth();
+        } else {
+            if (FIRE_AND_FORGET) {
+                return 0.0;
+            }
+            CompletableFuture<Double> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.getHealth());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get health for player " + player.getName(), e);
+                return 0.0;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to get health for player " + player.getName(), e);
+                }
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting health for player " + player.getName(), e);
+                return 0.0;
+            }
+        }
+    }
+
     // --- Thread-Safe Entity Operations ---
 
     public static void safeRemove(Plugin plugin, Entity entity) {

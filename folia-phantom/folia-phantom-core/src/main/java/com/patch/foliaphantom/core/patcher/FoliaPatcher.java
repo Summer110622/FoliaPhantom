@@ -1596,6 +1596,80 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely gets the player's current health.
+     */
+    public static double safeGetHealth(Plugin plugin, org.bukkit.entity.Player player) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getHealth();
+        }
+        if (FIRE_AND_FORGET) {
+            return 0.0;
+        }
+        CompletableFuture<Double> future = new CompletableFuture<>();
+        player.getScheduler().run(plugin, task -> {
+            try {
+                future.complete(player.getHealth());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        }, null);
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get health for player " + player.getName(), e);
+            return 0.0;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get health for player " + player.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting health for player " + player.getName(), e);
+            return 0.0;
+        }
+    }
+
+    /**
+     * Safely gets the block the player is looking at.
+     */
+    public static Block safeGetTargetBlock(Plugin plugin, org.bukkit.entity.Player player, Set<org.bukkit.Material> transparent, int maxDistance) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getTargetBlock(transparent, maxDistance);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<Block> future = new CompletableFuture<>();
+        player.getScheduler().run(plugin, task -> {
+            try {
+                future.complete(player.getTargetBlock(transparent, maxDistance));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        }, null);
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get target block for player " + player.getName(), e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get target block for player " + player.getName(), e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting target block for player " + player.getName(), e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely gets the block the player is looking at (deprecated HashSet version).
+     * This is an overload to handle plugins compiled against older Bukkit APIs.
+     */
+    public static Block safeGetTargetBlock(Plugin plugin, org.bukkit.entity.Player player, java.util.HashSet<org.bukkit.Material> transparent, int maxDistance) {
+        // The underlying Bukkit method now takes a Set, and HashSet is a Set, so we can just pass it through.
+        // This method exists purely for bytecode signature matching.
+        return safeGetTargetBlock(plugin, player, (Set<org.bukkit.Material>) transparent, maxDistance);
+    }
+
     // --- Thread-Safe Entity Operations ---
 
     public static void safeRemove(Plugin plugin, Entity entity) {

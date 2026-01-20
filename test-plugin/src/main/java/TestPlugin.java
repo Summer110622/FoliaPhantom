@@ -87,6 +87,46 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testhealth")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing getHealth from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeGetHealth helper.
+                        double health = player.getHealth();
+                        sender.sendMessage("Success! Your health is: " + health);
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during getHealth test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("testtargetblock")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing getTargetBlock from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeGetTargetBlock helper.
+                        org.bukkit.block.Block targetBlock = player.getTargetBlock(null, 100);
+                        if (targetBlock != null) {
+                            sender.sendMessage("Success! You are looking at a " + targetBlock.getType());
+                        } else {
+                            sender.sendMessage("Success! You are not looking at a block.");
+                        }
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during getTargetBlock test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

@@ -422,6 +422,18 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely broadcasts a message to the server.
+     * This is a global operation, so it uses the global region scheduler.
+     */
+    public static void safeBroadcastMessage(Plugin plugin, String message) {
+        if (Bukkit.isPrimaryThread()) {
+            Bukkit.getServer().broadcastMessage(message);
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.getServer().broadcastMessage(message));
+        }
+    }
+
     private static boolean isFolia() {
         try {
             Class.forName("io.papermc.paper.threadedregions.scheduler.RegionScheduler");

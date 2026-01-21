@@ -87,6 +87,58 @@ public class TestPlugin extends JavaPlugin {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testvelocity")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                Entity target = getNearestEntity(player);
+                if (target != null) {
+                    sender.sendMessage("Testing setVelocity on " + target.getType() + " from async thread...");
+                    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                        try {
+                            org.bukkit.util.Vector velocity = new org.bukkit.util.Vector(0, 1, 0);
+                            // This call should be transformed to safeSetVelocity
+                            target.setVelocity(velocity);
+                            sender.sendMessage("Successfully set velocity on " + target.getType());
+                        } catch (Exception e) {
+                            getLogger().severe("Caught unexpected exception during setVelocity test: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    sender.sendMessage("No nearby entities found to test velocity.");
+                }
+            }
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("testteleport")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                Entity target = getNearestEntity(player);
+                if (target != null) {
+                    sender.sendMessage("Testing teleport on " + target.getType() + " from async thread...");
+                    Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                        try {
+                            // This call should be transformed to safeTeleportEntity
+                            target.teleport(player.getLocation());
+                            sender.sendMessage("Successfully teleported " + target.getType());
+                        } catch (Exception e) {
+                            getLogger().severe("Caught unexpected exception during teleport test: " + e.getMessage());
+                        }
+                    });
+                } else {
+                    sender.sendMessage("No nearby entities found to test teleport.");
+                }
+            }
+            return true;
+        }
+
         return false;
+    }
+
+    private Entity getNearestEntity(Player player) {
+        return player.getNearbyEntities(5, 5, 5).stream()
+            .filter(e -> !(e instanceof Player))
+            .findFirst()
+            .orElse(null);
     }
 }

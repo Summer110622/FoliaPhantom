@@ -29,6 +29,7 @@ import com.patch.foliaphantom.core.transformer.impl.ServerGetOnlinePlayersTransf
 import com.patch.foliaphantom.core.transformer.impl.AsyncEventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetHighestBlockAtTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetPlayersTransformer;
+import com.patch.foliaphantom.core.transformer.impl.WorldSpawnEntityTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -251,6 +252,7 @@ public class PluginPatcher {
             visitorTransformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new WorldSpawnEntityTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));

@@ -5,7 +5,11 @@ import com.patch.foliaphantom.core.progress.PatchProgressListener;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.Scanner;
+import java.util.Set;
 import java.util.logging.ConsoleHandler;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -24,6 +28,7 @@ public class CLI {
         boolean fireAndForget = false;
         long apiTimeoutMs = 100L;
         String inputPath = null;
+        Set<String> asyncEventHandlers = Collections.emptySet();
 
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
@@ -43,6 +48,13 @@ public class CLI {
                     }
                 } else {
                     LOGGER.severe("Error: --timeout flag requires a value in milliseconds.");
+                    return;
+                }
+            } else if ("--async-events".equalsIgnoreCase(arg)) {
+                if (i + 1 < args.length) {
+                    asyncEventHandlers = new HashSet<>(Arrays.asList(args[++i].split(",")));
+                } else {
+                    LOGGER.severe("Error: --async-events flag requires a comma-separated list of method names.");
                     return;
                 }
             } else if (inputPath == null) {
@@ -76,7 +88,7 @@ public class CLI {
         LOGGER.info("API call timeout is set to: " + apiTimeoutMs + "ms.");
 
         PatchProgressListener listener = new ConsolePatchProgressListener();
-        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget, apiTimeoutMs);
+        PluginPatcher patcher = new PluginPatcher(LOGGER, listener, failFast, aggressiveEventOptimization, fireAndForget, apiTimeoutMs, null, asyncEventHandlers);
 
         if (inputFile.isDirectory()) {
             patchDirectory(patcher, inputFile, outputDir);

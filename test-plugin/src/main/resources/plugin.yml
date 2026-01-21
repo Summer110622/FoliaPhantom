@@ -15,3 +15,9 @@ commands:
   testhighestblock:
     description: "Tests the getHighestBlockAt transformation."
     usage: "/testhighestblock"
+  testvelocity:
+    description: "Tests async setVelocity call"
+    usage: "/testvelocity"
+  testteleport:
+    description: "Tests async teleport call"
+    usage: "/testteleport"

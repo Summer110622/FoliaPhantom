@@ -26,6 +26,7 @@ import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventCallTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ServerBroadcastMessageTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ServerGetOnlinePlayersTransformer;
+import com.patch.foliaphantom.core.transformer.impl.AsyncEventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetHighestBlockAtTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetPlayersTransformer;
 
@@ -118,14 +119,20 @@ public class PluginPatcher {
     /** Set of event class names to be handled with fire-and-forget */
     private final Set<String> fireAndForgetEvents;
 
+    /** Set of fully-qualified method names for async event handlers */
+    private final Set<String> asyncEventHandlers;
+
     /** Progress listener for real-time feedback */
     private final PatchProgressListener progressListener;
 
     /** Patched FoliaPatcher internal path */
     private String relocatedPatcherPath;
 
-    /** Ordered list of class transformers to apply */
-    private List<ClassTransformer> transformers;
+    /** Ordered list of ClassVisitor-based transformers to apply */
+    private List<ClassTransformer> visitorTransformers;
+
+    /** Ordered list of ClassNode-based transformers to apply */
+    private List<AsyncEventHandlerTransformer> nodeTransformers;
 
     /** Statistics: number of classes scanned */
     private final AtomicInteger classesScanned = new AtomicInteger(0);
@@ -150,7 +157,7 @@ public class PluginPatcher {
      * @param logger           Logger for diagnostics
      * @param progressListener Listener for real-time progress updates
      */
-    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs, Set<String> fireAndForgetEvents) {
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs, Set<String> fireAndForgetEvents, Set<String> asyncEventHandlers) {
         this.logger = logger;
         this.progressListener = progressListener != null ? progressListener : NULL_LISTENER;
         this.failFastOnTimeout = failFastOnTimeout;
@@ -158,10 +165,15 @@ public class PluginPatcher {
         this.fireAndForget = fireAndForget;
         this.apiTimeoutMs = apiTimeoutMs;
         this.fireAndForgetEvents = fireAndForgetEvents != null ? fireAndForgetEvents : Collections.emptySet();
+        this.asyncEventHandlers = asyncEventHandlers != null ? asyncEventHandlers : Collections.emptySet();
+    }
+
+    public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs, Set<String> fireAndForgetEvents) {
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, apiTimeoutMs, fireAndForgetEvents, null);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget, long apiTimeoutMs) {
-        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, apiTimeoutMs, null);
+        this(logger, progressListener, failFastOnTimeout, aggressiveEventOptimization, fireAndForget, apiTimeoutMs, null, null);
     }
 
     public PluginPatcher(Logger logger, PatchProgressListener progressListener, boolean failFastOnTimeout, boolean aggressiveEventOptimization, boolean fireAndForget) {
@@ -234,23 +246,26 @@ public class PluginPatcher {
             this.relocatedPatcherPath = safePluginName + "/folia/runtime";
 
             // Initialize transformers with the relocated path
-            this.transformers = new ArrayList<>();
-            transformers.add(new ServerBroadcastMessageTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
-            transformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
-            transformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
-            transformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
-            transformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
-            transformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
-            transformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
-            transformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
-            transformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
+            this.visitorTransformers = new ArrayList<>();
+            visitorTransformers.add(new ServerBroadcastMessageTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
+
+            this.nodeTransformers = new ArrayList<>();
+            nodeTransformers.add(new AsyncEventHandlerTransformer(logger, relocatedPatcherPath, asyncEventHandlers));
 
             logger.info("Relocating FoliaPhantom runtime to: " + relocatedPatcherPath);
 
@@ -509,15 +524,31 @@ public class PluginPatcher {
             ClassWriter cw = new ClassWriter(cr, 0);
             ClassVisitor cv = cw;
 
-            // Apply transformers in reverse order (so first registered runs first)
-            for (int i = transformers.size() - 1; i >= 0; i--) {
-                cv = transformers.get(i).createVisitor(cv);
+            // Apply visitor-based transformers
+            for (int i = visitorTransformers.size() - 1; i >= 0; i--) {
+                cv = visitorTransformers.get(i).createVisitor(cv);
             }
 
             cr.accept(cv, ClassReader.EXPAND_FRAMES);
 
-            logger.fine("[FoliaPhantom] Transformed: " + className);
-            return new ClassPatchResult(cw.toByteArray(), true);
+            byte[] intermediateBytes = cw.toByteArray();
+            boolean transformed = !java.util.Arrays.equals(originalBytes, intermediateBytes);
+
+            // Apply node-based transformers
+            byte[] finalBytes = intermediateBytes;
+            for (AsyncEventHandlerTransformer transformer : nodeTransformers) {
+                finalBytes = transformer.transform(finalBytes);
+            }
+
+            if (!java.util.Arrays.equals(intermediateBytes, finalBytes)) {
+                transformed = true;
+            }
+
+            if (transformed) {
+                logger.fine("[FoliaPhantom] Transformed: " + className);
+            }
+
+            return new ClassPatchResult(finalBytes, transformed);
 
         } catch (Exception e) {
             logger.log(Level.WARNING,

@@ -1719,6 +1719,20 @@ public final class FoliaPatcher {
         }
     }
 
+    // --- General Purpose Execution ---
+
+    /**
+     * Executes a task asynchronously.
+     * This is a simple fire-and-forget async execution.
+     *
+     * @param plugin The plugin instance.
+     * @param task The task to execute.
+     */
+    public static void executeAsync(Plugin plugin, Runnable task) {
+        Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
+    }
+
+
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

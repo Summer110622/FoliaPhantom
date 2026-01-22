@@ -44,6 +44,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.function.Consumer;
 import java.util.function.IntConsumer;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -431,6 +432,27 @@ public final class FoliaPatcher {
             Bukkit.getServer().broadcastMessage(message);
         } else {
             Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.getServer().broadcastMessage(message));
+        }
+    }
+
+    /**
+     * Safely iterates over all online players without creating a collection copy.
+     * This is a high-performance alternative to iterating over getOnlinePlayers().
+     *
+     * @param plugin The plugin instance.
+     * @param action The action to perform for each player.
+     */
+    public static void forEachPlayer(Plugin plugin, Consumer<org.bukkit.entity.Player> action) {
+        if (Bukkit.isPrimaryThread()) {
+            for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                action.accept(player);
+            }
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+                for (org.bukkit.entity.Player player : Bukkit.getOnlinePlayers()) {
+                    action.accept(player);
+                }
+            });
         }
     }
 

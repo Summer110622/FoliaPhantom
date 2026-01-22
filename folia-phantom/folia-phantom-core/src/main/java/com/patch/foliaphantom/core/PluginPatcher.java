@@ -253,6 +253,7 @@ public class PluginPatcher {
             visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldSpawnEntityTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new com.patch.foliaphantom.core.transformer.impl.BlockTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EventHandlerTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new TeleportTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));

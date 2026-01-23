@@ -123,7 +123,17 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         hasTransformed = true;
                         return;
                     }
-                    // Case 2: getOnlinePlayers().forEach(...)
+                    // Case 2: getOnlinePlayers().isEmpty()
+                    else if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "isEmpty".equals(name) && "()Z".equals(desc)) {
+                        logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().isEmpty() in " + className);
+                        pop(); // Pop server instance
+                        loadPluginInstance();
+                        super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersIsEmpty", "(Lorg/bukkit/plugin/Plugin;)Z", false);
+                        seenGetOnlinePlayers = false;
+                        hasTransformed = true;
+                        return;
+                    }
+                    // Case 3: getOnlinePlayers().forEach(...)
                     else if (opcode == Opcodes.INVOKEINTERFACE && ("java/util/Collection".equals(owner) || "java/lang/Iterable".equals(owner)) && "forEach".equals(name) && "(Ljava/util/function/Consumer;)V".equals(desc)) {
                         logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().forEach() in " + className);
                         // Stack: [Server, Consumer]. We want to call a static method that takes [Plugin, Consumer].

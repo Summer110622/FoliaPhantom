@@ -10,6 +10,7 @@ import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.logging.Logger;
 import org.objectweb.asm.AnnotationVisitor;
@@ -42,7 +43,7 @@ public class AsyncEventHandlerTransformer implements ClassTransformer {
         this.asyncEventHandlers = asyncEventHandlers != null ? asyncEventHandlers : Collections.emptySet();
     }
 
-    public byte[] transform(byte[] classBytes) {
+    public byte[] transform(byte[] classBytes, Map<String, byte[]> allClassBytes) {
         if (asyncEventHandlers.isEmpty()) {
             return classBytes;
         }
@@ -55,7 +56,7 @@ public class AsyncEventHandlerTransformer implements ClassTransformer {
             return classBytes;
         }
 
-        FieldNode pluginField = findPluginField(classNode);
+        FieldNode pluginField = findPluginField(classNode, allClassBytes);
         boolean isPluginClass = isPluginClass(classNode);
 
         if (pluginField == null && !isPluginClass) {
@@ -165,14 +166,23 @@ public class AsyncEventHandlerTransformer implements ClassTransformer {
         return false;
     }
 
-    private FieldNode findPluginField(ClassNode classNode) {
-        // This implementation does not check for inherited fields from superclasses.
-        // This is a known limitation that covers the vast majority of plugin listener patterns.
+    private FieldNode findPluginField(ClassNode classNode, Map<String, byte[]> allClassBytes) {
         for (FieldNode field : classNode.fields) {
             if (field.desc.equals(PLUGIN_DESC) || field.desc.equals(JAVA_PLUGIN_DESC)) {
                 return field;
             }
         }
+
+        if (classNode.superName != null && !classNode.superName.equals("java/lang/Object")) {
+            byte[] superBytes = allClassBytes.get(classNode.superName);
+            if (superBytes != null) {
+                ClassReader superReader = new ClassReader(superBytes);
+                ClassNode superNode = new ClassNode();
+                superReader.accept(superNode, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES);
+                return findPluginField(superNode, allClassBytes);
+            }
+        }
+
         return null;
     }
 

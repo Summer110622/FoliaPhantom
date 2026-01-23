@@ -306,14 +306,21 @@ public class PluginPatcher {
                 classFiles = stream.filter(p -> p.toString().endsWith(".class")).toList();
             }
 
+            Map<String, byte[]> allClassBytes = new HashMap<>();
+            for (Path path : classFiles) {
+                String className = path.toString().substring(1, path.toString().length() - ".class".length());
+                allClassBytes.put(className, Files.readAllBytes(path));
+            }
+
             progressListener.onProgressUpdate(0, "Transforming " + classFiles.size() + " classes...");
 
             // Submit all class patching tasks for parallel execution.
             Map<Path, Future<ClassPatchResult>> futures = new HashMap<>();
             for (Path path : classFiles) {
-                byte[] originalBytes = Files.readAllBytes(path);
+                String className = path.toString().substring(1, path.toString().length() - ".class".length());
+                byte[] originalBytes = allClassBytes.get(className);
                 classesScanned.incrementAndGet();
-                futures.put(path, executor.submit(() -> patchClass(originalBytes, path.toString())));
+                futures.put(path, executor.submit(() -> patchClass(originalBytes, path.toString(), allClassBytes)));
             }
 
             // Process results and write back to the in-memory filesystem.
@@ -511,7 +518,7 @@ public class PluginPatcher {
      * @param className     The class name (for logging)
      * @return The patching result containing transformed bytes
      */
-    private ClassPatchResult patchClass(byte[] originalBytes, String className) {
+    private ClassPatchResult patchClass(byte[] originalBytes, String className, Map<String, byte[]> allClassBytes) {
         try {
             ClassReader cr = new ClassReader(originalBytes);
 
@@ -540,7 +547,7 @@ public class PluginPatcher {
             // Apply node-based transformers
             byte[] finalBytes = intermediateBytes;
             for (AsyncEventHandlerTransformer transformer : nodeTransformers) {
-                finalBytes = transformer.transform(finalBytes);
+                finalBytes = transformer.transform(finalBytes, allClassBytes);
             }
 
             if (!java.util.Arrays.equals(intermediateBytes, finalBytes)) {

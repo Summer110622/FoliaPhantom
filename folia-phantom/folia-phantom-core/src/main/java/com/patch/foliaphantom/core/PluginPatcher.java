@@ -14,6 +14,7 @@ import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransformer;
+import com.patch.foliaphantom.core.transformer.impl.PlayerGetTargetBlockTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PlayerHealthTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
@@ -259,6 +260,7 @@ public class PluginPatcher {
             visitorTransformers.add(new PlayerHealthTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ThreadSafetyTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new PlayerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new PlayerGetTargetBlockTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));

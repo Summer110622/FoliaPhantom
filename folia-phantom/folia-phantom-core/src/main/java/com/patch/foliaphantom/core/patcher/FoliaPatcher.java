@@ -1679,6 +1679,47 @@ public final class FoliaPatcher {
         }
     }
 
+    /**
+     * Safely gets the target block a player is looking at.
+     * If not on the main thread, this will schedule the call and block until it completes.
+     *
+     * @param plugin The plugin instance.
+     * @param player The player.
+     * @param transparent A set of materials to treat as transparent.
+     * @param maxDistance The maximum distance to check.
+     * @return The target block, or null if the operation times out or fails.
+     */
+    @SuppressWarnings("deprecation")
+    public static Block safeGetTargetBlock(Plugin plugin, org.bukkit.entity.Player player, Set<org.bukkit.Material> transparent, int maxDistance) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getTargetBlock(transparent, maxDistance);
+        } else {
+            if (FIRE_AND_FORGET) {
+                return null;
+            }
+            CompletableFuture<Block> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.getTargetBlock(transparent, maxDistance));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get target block for player " + player.getName(), e);
+                return null;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to get target block for player " + player.getName(), e);
+                }
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting target block for player " + player.getName(), e);
+                return null;
+            }
+        }
+    }
+
     // --- Thread-Safe Entity Operations ---
 
     public static void safeRemove(Plugin plugin, Entity entity) {

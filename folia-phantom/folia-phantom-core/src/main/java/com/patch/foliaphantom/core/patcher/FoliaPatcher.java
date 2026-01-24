@@ -424,6 +424,42 @@ public final class FoliaPatcher {
     }
 
     /**
+     * Safely gets the list of all loaded worlds.
+     * This is a global operation, so it uses the global region scheduler.
+     *
+     * @param plugin The plugin instance.
+     * @return A list of worlds, or an empty list if the operation fails or times out.
+     */
+    public static java.util.List<World> safeGetWorlds(Plugin plugin) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getWorlds();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<World>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(new java.util.ArrayList<>(Bukkit.getWorlds()));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get worlds", e);
+            return java.util.Collections.emptyList();
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get worlds", e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting worlds", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
      * Safely broadcasts a message to the server.
      * This is a global operation, so it uses the global region scheduler.
      */

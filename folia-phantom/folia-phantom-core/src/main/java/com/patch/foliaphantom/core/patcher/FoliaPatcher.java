@@ -396,6 +396,29 @@ public final class FoliaPatcher {
         }
     }
 
+    public static boolean safeGetOnlinePlayersIsEmpty(final Plugin plugin) {
+        if (!isFolia()) {
+            return Bukkit.getOnlinePlayers().isEmpty();
+        }
+        if (FIRE_AND_FORGET) {
+            return false; // Safest default
+        }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getOnlinePlayers().isEmpty());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to check if online players is empty", e);
+            return false; // Safest default
+        }
+    }
+
     /**
      * Safely gets the online players from the server.
      * This is a global operation, so it uses the global region scheduler.

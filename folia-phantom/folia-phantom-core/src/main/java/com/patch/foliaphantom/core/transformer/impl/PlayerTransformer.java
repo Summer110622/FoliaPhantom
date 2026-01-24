@@ -38,6 +38,7 @@ public class PlayerTransformer implements ClassTransformer {
         addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "safeSendTitle", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
         addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "safeOpenInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
         addMapping("closeInventory", "()V", "safeCloseInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)V");
+        addMapping("getTargetBlock", "(Ljava/util/Set;I)Lorg/bukkit/block/Block;", "safeGetTargetBlock", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/util/Set;I)Lorg/bukkit/block/Block;");
     }
 
     public PlayerTransformer(Logger logger, String relocatedPatcherPath) {
@@ -46,7 +47,7 @@ public class PlayerTransformer implements ClassTransformer {
     }
 
     private static void addMapping(String originalName, String originalDesc, String newName, String newDesc) {
-        METHOD_MAPPINGS.put(originalName + originalDesc, new MethodMapping(newName, newDesc));
+        METHOD_MAPPINGS.put(originalName + originalDesc, new MethodMapping(newName, newDesc, originalDesc));
     }
 
     @Override
@@ -154,10 +155,10 @@ public class PlayerTransformer implements ClassTransformer {
         final String newDesc;
         final String originalDesc;
 
-        MethodMapping(String newName, String newDesc) {
+        MethodMapping(String newName, String newDesc, String originalDesc) {
             this.newName = newName;
             this.newDesc = newDesc;
-            this.originalDesc = newDesc.replace("(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;", "(");
+            this.originalDesc = originalDesc;
         }
     }
 }

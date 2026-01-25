@@ -242,48 +242,71 @@ public final class FoliaPatcher {
         };
     }
 
-    // --- Scheduler Redirections ---
+    // --- High-Performance Context-Aware Scheduler Redirections ---
 
-    public static BukkitTask runTask(BukkitScheduler ignored, Plugin plugin, Runnable runnable) {
+    public static BukkitTask runTask(Plugin plugin, Object context, Runnable runnable) {
         int taskId = taskIdCounter.getAndIncrement();
         Runnable wrapped = wrapRunnable(runnable, taskId, false);
-        Location loc = getFallbackLocation();
 
-        ScheduledTask foliaTask = (loc != null)
-                ? Bukkit.getRegionScheduler().run(plugin, loc, t -> wrapped.run())
-                : Bukkit.getGlobalRegionScheduler().run(plugin, t -> wrapped.run());
-
+        ScheduledTask foliaTask = runTaskWithContext(plugin, context, wrapped);
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
     }
 
-    public static BukkitTask runTaskLater(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay) {
+    public static BukkitTask runTaskLater(Plugin plugin, Object context, Runnable runnable, long delay) {
         int taskId = taskIdCounter.getAndIncrement();
         Runnable wrapped = wrapRunnable(runnable, taskId, false);
-        Location loc = getFallbackLocation();
         long finalDelay = Math.max(1, delay);
 
-        ScheduledTask foliaTask = (loc != null)
-                ? Bukkit.getRegionScheduler().runDelayed(plugin, loc, t -> wrapped.run(), finalDelay)
-                : Bukkit.getGlobalRegionScheduler().runDelayed(plugin, t -> wrapped.run(), finalDelay);
-
+        ScheduledTask foliaTask = runTaskLaterWithContext(plugin, context, wrapped, finalDelay);
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
     }
 
-    public static BukkitTask runTaskTimer(BukkitScheduler ignored, Plugin plugin, Runnable runnable, long delay,
-            long period) {
+    public static BukkitTask runTaskTimer(Plugin plugin, Object context, Runnable runnable, long delay, long period) {
         int taskId = taskIdCounter.getAndIncrement();
-        Location loc = getFallbackLocation();
         long d = Math.max(1, delay);
         long p = Math.max(1, period);
 
-        ScheduledTask foliaTask = (loc != null)
-                ? Bukkit.getRegionScheduler().runAtFixedRate(plugin, loc, t -> runnable.run(), d, p)
-                : Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> runnable.run(), d, p);
-
+        ScheduledTask foliaTask = runTaskTimerWithContext(plugin, context, runnable, d, p);
         runningTasks.put(taskId, foliaTask);
         return new FoliaBukkitTask(taskId, plugin, FoliaPatcher::cancelTaskById, true, foliaTask);
+    }
+
+    private static ScheduledTask runTaskWithContext(Plugin plugin, Object context, Runnable r) {
+        if (context instanceof org.bukkit.entity.Player) {
+            return ((org.bukkit.entity.Player) context).getScheduler().run(plugin, t -> r.run(), null);
+        } else if (context instanceof Entity) {
+            return ((Entity) context).getScheduler().run(plugin, t -> r.run(), null);
+        } else if (context instanceof Location) {
+            return Bukkit.getRegionScheduler().run(plugin, (Location) context, t -> r.run());
+        } else {
+            return Bukkit.getGlobalRegionScheduler().run(plugin, t -> r.run());
+        }
+    }
+
+    private static ScheduledTask runTaskLaterWithContext(Plugin plugin, Object context, Runnable r, long delay) {
+        if (context instanceof org.bukkit.entity.Player) {
+            return ((org.bukkit.entity.Player) context).getScheduler().runDelayed(plugin, t -> r.run(), null, delay);
+        } else if (context instanceof Entity) {
+            return ((Entity) context).getScheduler().runDelayed(plugin, t -> r.run(), null, delay);
+        } else if (context instanceof Location) {
+            return Bukkit.getRegionScheduler().runDelayed(plugin, (Location) context, t -> r.run(), delay);
+        } else {
+            return Bukkit.getGlobalRegionScheduler().runDelayed(plugin, t -> r.run(), delay);
+        }
+    }
+
+    private static ScheduledTask runTaskTimerWithContext(Plugin plugin, Object context, Runnable r, long delay, long period) {
+        if (context instanceof org.bukkit.entity.Player) {
+            return ((org.bukkit.entity.Player) context).getScheduler().runAtFixedRate(plugin, t -> r.run(), null, delay, period);
+        } else if (context instanceof Entity) {
+            return ((Entity) context).getScheduler().runAtFixedRate(plugin, t -> r.run(), null, delay, period);
+        } else if (context instanceof Location) {
+            return Bukkit.getRegionScheduler().runAtFixedRate(plugin, (Location) context, t -> r.run(), delay, period);
+        } else {
+            return Bukkit.getGlobalRegionScheduler().runAtFixedRate(plugin, t -> r.run(), delay, period);
+        }
     }
 
     public static BukkitTask runTaskAsynchronously(BukkitScheduler ignored, Plugin plugin, Runnable runnable) {
@@ -1769,11 +1792,11 @@ public final class FoliaPatcher {
     // --- Legacy / Int-returning Method Mappings ---
 
     public static int scheduleSyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {
-        return runTaskLater(s, p, r, d).getTaskId();
+        return runTaskLater(p, null, r, d).getTaskId();
     }
 
     public static int scheduleSyncRepeatingTask(BukkitScheduler s, Plugin p, Runnable r, long d, long pr) {
-        return runTaskTimer(s, p, r, d, pr).getTaskId();
+        return runTaskTimer(p, null, r, d, pr).getTaskId();
     }
 
     public static int scheduleAsyncDelayedTask(BukkitScheduler s, Plugin p, Runnable r, long d) {

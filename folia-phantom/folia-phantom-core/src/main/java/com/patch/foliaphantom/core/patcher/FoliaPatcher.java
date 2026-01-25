@@ -1882,4 +1882,34 @@ public final class FoliaPatcher {
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
     }
+
+    /**
+     * Safely gets the list of all worlds from the server.
+     * This is a global operation, so it uses the global region scheduler.
+     *
+     * @param plugin The plugin instance.
+     * @return A list of all worlds, or an empty list if the operation fails or times out.
+     */
+    public static java.util.List<World> safeGetWorlds(Plugin plugin) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getWorlds();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<World>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(new java.util.ArrayList<>(Bukkit.getWorlds()));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to get worlds", e);
+            return java.util.Collections.emptyList();
+        }
+    }
 }

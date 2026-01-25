@@ -133,6 +133,33 @@ public final class FoliaPatcher {
     }
 
     /**
+     * Safely gets the list of worlds from the server.
+     * This is a global operation, so it uses the global region scheduler.
+     */
+    public static java.util.List<World> safeGetWorlds(Plugin plugin) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getServer().getWorlds();
+        }
+        if (FIRE_AND_FORGET) {
+            return java.util.Collections.emptyList();
+        }
+        CompletableFuture<java.util.List<World>> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(new java.util.ArrayList<>(Bukkit.getServer().getWorlds()));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to get worlds", e);
+            return java.util.Collections.emptyList();
+        }
+    }
+
+    /**
      * Safely gets the highest block at a given location.
      */
     public static Block safeGetHighestBlockAt(Plugin plugin, World world, int x, int z) {

@@ -26,6 +26,7 @@ import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventCallTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ServerBroadcastMessageTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ServerGetOnlinePlayersTransformer;
+import com.patch.foliaphantom.core.transformer.impl.ServerGetWorldsTransformer;
 import com.patch.foliaphantom.core.transformer.impl.AsyncEventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetHighestBlockAtTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGetPlayersTransformer;
@@ -250,6 +251,7 @@ public class PluginPatcher {
             this.visitorTransformers = new ArrayList<>();
             visitorTransformers.add(new ServerBroadcastMessageTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new ServerGetWorldsTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldSpawnEntityTransformer(logger, relocatedPatcherPath));

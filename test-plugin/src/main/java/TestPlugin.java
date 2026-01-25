@@ -13,6 +13,16 @@ public class TestPlugin extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
         getServer().getPluginManager().registerEvents(this, this);
+
+        // Test Server#getWorlds() call from an async thread
+        Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+            try {
+                int worldCount = Bukkit.getWorlds().size();
+                getLogger().info("Successfully retrieved world count asynchronously: " + worldCount);
+            } catch (Exception e) {
+                getLogger().log(Level.SEVERE, "Failed to get worlds asynchronously", e);
+            }
+        });
     }
 
     @EventHandler

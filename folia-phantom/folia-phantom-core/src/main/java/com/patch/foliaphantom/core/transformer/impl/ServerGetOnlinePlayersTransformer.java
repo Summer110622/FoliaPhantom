@@ -87,18 +87,26 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
         }
 
         private class GetOnlinePlayersMethodVisitor extends AdviceAdapter {
-            private boolean seenGetOnlinePlayers = false;
-
             GetOnlinePlayersMethodVisitor(MethodVisitor mv, int access, String name, String desc) {
                 super(Opcodes.ASM9, mv, access, name, desc);
             }
 
-            private void flushPendingGetOnlinePlayers() {
-                if (seenGetOnlinePlayers) {
-                    logger.fine("[FoliaPhantom] Flushing pending getOnlinePlayers call in " + className);
-                    seenGetOnlinePlayers = false; // Reset state
-                    pop(); // Pop the Server instance
-                    loadPluginInstance(); // Push the Plugin instance
+            @Override
+            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
+                boolean isServerGetOnlinePlayers = opcode == Opcodes.INVOKEINTERFACE
+                    && "org/bukkit/Server".equals(owner)
+                    && "getOnlinePlayers".equals(name)
+                    && "()Ljava/util/Collection;".equals(desc);
+
+                boolean isBukkitGetOnlinePlayers = opcode == Opcodes.INVOKESTATIC
+                    && "org/bukkit/Bukkit".equals(owner)
+                    && "getOnlinePlayers".equals(name)
+                    && "()Ljava/util/Collection;".equals(desc);
+
+                if (isServerGetOnlinePlayers) {
+                    logger.fine("[FoliaPhantom] Transforming Server#getOnlinePlayers call in " + className);
+                    pop(); // Pop the Server instance from the stack
+                    loadPluginInstance(); // Push the plugin instance
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
@@ -107,43 +115,17 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         false
                     );
                     hasTransformed = true;
-                }
-            }
-
-            @Override
-            public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                if (seenGetOnlinePlayers) {
-                    // Case 1: getOnlinePlayers().size()
-                    if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "size".equals(name) && "()I".equals(desc)) {
-                        logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().size() in " + className);
-                        pop(); // Pop server instance
-                        loadPluginInstance();
-                        super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersSize", "(Lorg/bukkit/plugin/Plugin;)I", false);
-                        seenGetOnlinePlayers = false;
-                        hasTransformed = true;
-                        return;
-                    }
-                    // Case 2: getOnlinePlayers().forEach(...)
-                    else if (opcode == Opcodes.INVOKEINTERFACE && ("java/util/Collection".equals(owner) || "java/lang/Iterable".equals(owner)) && "forEach".equals(name) && "(Ljava/util/function/Consumer;)V".equals(desc)) {
-                        logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().forEach() in " + className);
-                        // Stack: [Server, Consumer]. We want to call a static method that takes [Plugin, Consumer].
-                        pop(); // Pop the Server instance. Stack: [Consumer]
-                        loadPluginInstance(); // Push the Plugin instance. Stack: [Consumer, Plugin]
-                        swap(); // Swap them. Stack: [Plugin, Consumer]
-                        super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "forEachPlayer", "(Lorg/bukkit/plugin/Plugin;Ljava/util/function/Consumer;)V", false);
-                        seenGetOnlinePlayers = false;
-                        hasTransformed = true;
-                        return;
-                    }
-                }
-
-                // If we have a pending getOnlinePlayers, flush it before handling the current instruction.
-                flushPendingGetOnlinePlayers();
-
-                // Now, check if the current instruction is getOnlinePlayers to start the pattern matching.
-                if (opcode == Opcodes.INVOKEINTERFACE && "org/bukkit/Server".equals(owner) && "getOnlinePlayers".equals(name) && "()Ljava/util/Collection;".equals(desc)) {
-                    seenGetOnlinePlayers = true;
-                    // Don't call super, we will transform this on the next instruction (or in flush).
+                } else if (isBukkitGetOnlinePlayers) {
+                    logger.fine("[FoliaPhantom] Transforming Bukkit#getOnlinePlayers call in " + className);
+                    loadPluginInstance(); // Push the plugin instance
+                    super.visitMethodInsn(
+                        Opcodes.INVOKESTATIC,
+                        relocatedPatcherPath + "/FoliaPatcher",
+                        "safeGetOnlinePlayers",
+                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/Collection;",
+                        false
+                    );
+                    hasTransformed = true;
                 } else {
                     super.visitMethodInsn(opcode, owner, name, desc, itf);
                 }
@@ -160,24 +142,6 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                     throw new IllegalStateException("Cannot transform getOnlinePlayers call in " + className + ": No plugin instance found.");
                 }
             }
-
-            // Flush any pending transformation before the method ends or other instructions are visited.
-            @Override protected void onMethodExit(int opcode) { flushPendingGetOnlinePlayers(); }
-            @Override public void visitLabel(org.objectweb.asm.Label label) { flushPendingGetOnlinePlayers(); super.visitLabel(label); }
-            @Override public void visitFrame(int type, int numLocal, Object[] local, int numStack, Object[] stack) { flushPendingGetOnlinePlayers(); super.visitFrame(type, numLocal, local, numStack, stack); }
-            @Override public void visitInsn(int opcode) { flushPendingGetOnlinePlayers(); super.visitInsn(opcode); }
-            @Override public void visitIntInsn(int opcode, int operand) { flushPendingGetOnlinePlayers(); super.visitIntInsn(opcode, operand); }
-            @Override public void visitVarInsn(int opcode, int var) { flushPendingGetOnlinePlayers(); super.visitVarInsn(opcode, var); }
-            @Override public void visitTypeInsn(int opcode, String type) { flushPendingGetOnlinePlayers(); super.visitTypeInsn(opcode, type); }
-            @Override public void visitFieldInsn(int opcode, String owner, String name, String desc) { flushPendingGetOnlinePlayers(); super.visitFieldInsn(opcode, owner, name, desc); }
-            @Override public void visitInvokeDynamicInsn(String name, String desc, org.objectweb.asm.Handle bsm, Object... bsmArgs) { flushPendingGetOnlinePlayers(); super.visitInvokeDynamicInsn(name, desc, bsm, bsmArgs); }
-            @Override public void visitJumpInsn(int opcode, org.objectweb.asm.Label label) { flushPendingGetOnlinePlayers(); super.visitJumpInsn(opcode, label); }
-            @Override public void visitLdcInsn(Object cst) { flushPendingGetOnlinePlayers(); super.visitLdcInsn(cst); }
-            @Override public void visitIincInsn(int var, int increment) { flushPendingGetOnlinePlayers(); super.visitIincInsn(var, increment); }
-            @Override public void visitTableSwitchInsn(int min, int max, org.objectweb.asm.Label dflt, org.objectweb.asm.Label... labels) { flushPendingGetOnlinePlayers(); super.visitTableSwitchInsn(min, max, dflt, labels); }
-            @Override public void visitLookupSwitchInsn(org.objectweb.asm.Label dflt, int[] keys, org.objectweb.asm.Label[] labels) { flushPendingGetOnlinePlayers(); super.visitLookupSwitchInsn(dflt, keys, labels); }
-            @Override public void visitMultiANewArrayInsn(String desc, int dims) { flushPendingGetOnlinePlayers(); super.visitMultiANewArrayInsn(desc, dims); }
-            @Override public void visitMaxs(int maxStack, int maxLocals) { flushPendingGetOnlinePlayers(); super.visitMaxs(maxStack, maxLocals); }
         }
     }
 }

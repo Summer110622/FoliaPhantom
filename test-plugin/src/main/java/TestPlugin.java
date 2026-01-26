@@ -108,6 +108,22 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testforeach")) {
+            sender.sendMessage("Testing for-each loop with getOnlinePlayers...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    int count = 0;
+                    for (Player p : Bukkit.getServer().getOnlinePlayers()) {
+                        count++;
+                    }
+                    sender.sendMessage("For-each loop completed. Players found: " + count);
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, "Error in testforeach command", e);
+                }
+            });
+            return true;
+        }
+
         return false;
     }
 }

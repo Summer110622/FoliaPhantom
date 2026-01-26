@@ -8,6 +8,7 @@ package com.patch.foliaphantom.core.transformer.impl;
 
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import org.objectweb.asm.ClassVisitor;
+import org.objectweb.asm.Label;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.commons.AdviceAdapter;
@@ -97,7 +98,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                 if (seenGetOnlinePlayers) {
                     logger.fine("[FoliaPhantom] Flushing pending getOnlinePlayers call in " + className);
                     seenGetOnlinePlayers = false; // Reset state
-                    pop(); // Pop the Server instance
+                    pop(); // Pop the player collection
                     loadPluginInstance(); // Push the Plugin instance
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
@@ -116,7 +117,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                     // Case 1: getOnlinePlayers().size()
                     if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "size".equals(name) && "()I".equals(desc)) {
                         logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().size() in " + className);
-                        pop(); // Pop server instance
+                        pop(); // Pop player collection
                         loadPluginInstance();
                         super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersSize", "(Lorg/bukkit/plugin/Plugin;)I", false);
                         seenGetOnlinePlayers = false;
@@ -131,6 +132,27 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         loadPluginInstance(); // Push the Plugin instance. Stack: [Consumer, Plugin]
                         swap(); // Swap them. Stack: [Plugin, Consumer]
                         super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "forEachPlayer", "(Lorg/bukkit/plugin/Plugin;Ljava/util/function/Consumer;)V", false);
+                        seenGetOnlinePlayers = false;
+                        hasTransformed = true;
+                        return;
+                    }
+                    // Case 3: getOnlinePlayers().isEmpty() -> safeGetOnlinePlayersSize() == 0
+                    else if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "isEmpty".equals(name) && "()Z".equals(desc)) {
+                        logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().isEmpty() in " + className);
+                        pop(); // Pop player collection
+                        loadPluginInstance();
+                        super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersSize", "(Lorg/bukkit/plugin/Plugin;)I", false);
+
+                        // Compare the result with 0
+                        Label isNotEmptyLabel = new Label();
+                        super.visitJumpInsn(Opcodes.IFNE, isNotEmptyLabel);
+                        super.visitInsn(Opcodes.ICONST_1); // a == 0, so it is empty, push true
+                        Label endLabel = new Label();
+                        super.visitJumpInsn(Opcodes.GOTO, endLabel);
+                        super.visitLabel(isNotEmptyLabel);
+                        super.visitInsn(Opcodes.ICONST_0); // a != 0, so it is not empty, push false
+                        super.visitLabel(endLabel);
+
                         seenGetOnlinePlayers = false;
                         hasTransformed = true;
                         return;

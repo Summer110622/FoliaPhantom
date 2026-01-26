@@ -10,5 +10,8 @@ public class TestPlugin extends JavaPlugin {
     public void onEnable() {
         // This is the call we want to transform
         Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(null, "test"));
+
+        boolean empty = Bukkit.getOnlinePlayers().isEmpty();
+        getLogger().info("Server is empty: " + empty);
     }
 }

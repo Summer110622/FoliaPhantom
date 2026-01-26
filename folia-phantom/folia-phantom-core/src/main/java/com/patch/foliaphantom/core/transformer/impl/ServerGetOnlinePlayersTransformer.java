@@ -87,17 +87,19 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
         }
 
         private class GetOnlinePlayersMethodVisitor extends AdviceAdapter {
-            private boolean seenGetOnlinePlayers = false;
+            private enum CallType { NONE, INTERFACE, STATIC }
+            private CallType getOnlinePlayersCallType = CallType.NONE;
 
             GetOnlinePlayersMethodVisitor(MethodVisitor mv, int access, String name, String desc) {
                 super(Opcodes.ASM9, mv, access, name, desc);
             }
 
             private void flushPendingGetOnlinePlayers() {
-                if (seenGetOnlinePlayers) {
+                if (getOnlinePlayersCallType != CallType.NONE) {
                     logger.fine("[FoliaPhantom] Flushing pending getOnlinePlayers call in " + className);
-                    seenGetOnlinePlayers = false; // Reset state
-                    pop(); // Pop the Server instance
+                    if (getOnlinePlayersCallType == CallType.INTERFACE) {
+                        pop(); // Pop the Server instance
+                    }
                     loadPluginInstance(); // Push the Plugin instance
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
@@ -107,31 +109,45 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                         false
                     );
                     hasTransformed = true;
+                    getOnlinePlayersCallType = CallType.NONE; // Reset state
                 }
             }
 
             @Override
             public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean itf) {
-                if (seenGetOnlinePlayers) {
+                if (getOnlinePlayersCallType != CallType.NONE) {
+                    boolean isInterfaceCall = getOnlinePlayersCallType == CallType.INTERFACE;
+
                     // Case 1: getOnlinePlayers().size()
                     if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "size".equals(name) && "()I".equals(desc)) {
                         logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().size() in " + className);
-                        pop(); // Pop server instance
+                        if (isInterfaceCall) { pop(); } // Pop server instance
                         loadPluginInstance();
                         super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersSize", "(Lorg/bukkit/plugin/Plugin;)I", false);
-                        seenGetOnlinePlayers = false;
+                        getOnlinePlayersCallType = CallType.NONE;
                         hasTransformed = true;
                         return;
                     }
                     // Case 2: getOnlinePlayers().forEach(...)
                     else if (opcode == Opcodes.INVOKEINTERFACE && ("java/util/Collection".equals(owner) || "java/lang/Iterable".equals(owner)) && "forEach".equals(name) && "(Ljava/util/function/Consumer;)V".equals(desc)) {
                         logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().forEach() in " + className);
-                        // Stack: [Server, Consumer]. We want to call a static method that takes [Plugin, Consumer].
-                        pop(); // Pop the Server instance. Stack: [Consumer]
+                        if (isInterfaceCall) {
+                            pop(); // Pop the Server instance. Stack: [Consumer]
+                        }
                         loadPluginInstance(); // Push the Plugin instance. Stack: [Consumer, Plugin]
                         swap(); // Swap them. Stack: [Plugin, Consumer]
                         super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "forEachPlayer", "(Lorg/bukkit/plugin/Plugin;Ljava/util/function/Consumer;)V", false);
-                        seenGetOnlinePlayers = false;
+                        getOnlinePlayersCallType = CallType.NONE;
+                        hasTransformed = true;
+                        return;
+                    }
+                    // Case 3: getOnlinePlayers().isEmpty()
+                    else if (opcode == Opcodes.INVOKEINTERFACE && "java/util/Collection".equals(owner) && "isEmpty".equals(name) && "()Z".equals(desc)) {
+                        logger.fine("[FoliaPhantom] Optimizing getOnlinePlayers().isEmpty() in " + className);
+                        if (isInterfaceCall) { pop(); } // Pop server instance
+                        loadPluginInstance();
+                        super.visitMethodInsn(Opcodes.INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", "safeGetOnlinePlayersIsEmpty", "(Lorg/bukkit/plugin/Plugin;)Z", false);
+                        getOnlinePlayersCallType = CallType.NONE;
                         hasTransformed = true;
                         return;
                     }
@@ -140,10 +156,13 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                 // If we have a pending getOnlinePlayers, flush it before handling the current instruction.
                 flushPendingGetOnlinePlayers();
 
-                // Now, check if the current instruction is getOnlinePlayers to start the pattern matching.
-                if (opcode == Opcodes.INVOKEINTERFACE && "org/bukkit/Server".equals(owner) && "getOnlinePlayers".equals(name) && "()Ljava/util/Collection;".equals(desc)) {
-                    seenGetOnlinePlayers = true;
-                    // Don't call super, we will transform this on the next instruction (or in flush).
+                boolean isGetOnlinePlayersInterface = opcode == Opcodes.INVOKEINTERFACE && "org/bukkit/Server".equals(owner) && "getOnlinePlayers".equals(name) && "()Ljava/util/Collection;".equals(desc);
+                boolean isGetOnlinePlayersStatic = opcode == Opcodes.INVOKESTATIC && "org/bukkit/Bukkit".equals(owner) && "getOnlinePlayers".equals(name) && "()Ljava/util/Collection;".equals(desc);
+
+                if (isGetOnlinePlayersInterface) {
+                    getOnlinePlayersCallType = CallType.INTERFACE;
+                } else if (isGetOnlinePlayersStatic) {
+                    getOnlinePlayersCallType = CallType.STATIC;
                 } else {
                     super.visitMethodInsn(opcode, owner, name, desc, itf);
                 }
@@ -151,12 +170,11 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
 
             private void loadPluginInstance() {
                 if (isJavaPlugin) {
-                    visitVarInsn(ALOAD, 0); // this
+                    super.visitVarInsn(ALOAD, 0); // this
                 } else if (pluginField != null) {
-                    visitVarInsn(ALOAD, 0); // this
-                    visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
+                    super.visitVarInsn(ALOAD, 0); // this
+                    super.visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
                 } else {
-                    // This should not be reached due to the check in visitMethod.
                     throw new IllegalStateException("Cannot transform getOnlinePlayers call in " + className + ": No plugin instance found.");
                 }
             }

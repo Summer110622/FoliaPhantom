@@ -40,6 +40,7 @@ public class TeleportTransformer implements ClassTransformer {
         private String className;
         private String pluginFieldName;
         private String pluginFieldDesc;
+        private boolean isPluginClass;
         private final String patcherPath;
         private final Logger logger;
 
@@ -52,6 +53,9 @@ public class TeleportTransformer implements ClassTransformer {
         @Override
         public void visit(int version, int access, String name, String sig, String superName, String[] interfaces) {
             this.className = name;
+            if (superName != null && superName.equals("org/bukkit/plugin/java/JavaPlugin")) {
+                this.isPluginClass = true;
+            }
             super.visit(version, access, name, sig, superName, interfaces);
         }
 
@@ -67,24 +71,26 @@ public class TeleportTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String desc, String sig, String[] ex) {
             MethodVisitor mv = super.visitMethod(access, name, desc, sig, ex);
-            if (pluginFieldName == null) {
+            if (!isPluginClass && pluginFieldName == null) {
                 return mv;
             }
-            return new TeleportMethodVisitor(mv, access, name, desc, patcherPath, className, pluginFieldName, pluginFieldDesc);
+            return new TeleportMethodVisitor(mv, access, name, desc, patcherPath, className, isPluginClass, pluginFieldName, pluginFieldDesc);
         }
     }
 
     private static class TeleportMethodVisitor extends AdviceAdapter {
         private final String patcherPath;
         private final String pluginFieldOwner;
+        private final boolean isPluginClass;
         private final String pluginFieldName;
         private final String pluginFieldDesc;
 
         protected TeleportMethodVisitor(MethodVisitor mv, int access, String name, String desc,
-                String patcherPath, String owner, String pfn, String pfd) {
+                String patcherPath, String owner, boolean isPlugin, String pfn, String pfd) {
             super(Opcodes.ASM9, mv, access, name, desc);
             this.patcherPath = patcherPath;
             this.pluginFieldOwner = owner;
+            this.isPluginClass = isPlugin;
             this.pluginFieldName = pfn;
             this.pluginFieldDesc = pfd;
         }
@@ -100,8 +106,12 @@ public class TeleportTransformer implements ClassTransformer {
                 storeLocal(playerLocal);
 
                 // Stack: []
-                loadThis();
-                getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, Type.getType(pluginFieldDesc));
+                if (isPluginClass) {
+                    loadThis();
+                } else {
+                    loadThis();
+                    getField(Type.getObjectType(pluginFieldOwner), pluginFieldName, Type.getType(pluginFieldDesc));
+                }
                 loadLocal(playerLocal);
                 loadLocal(locLocal);
 

@@ -38,6 +38,7 @@ public class PlayerTransformer implements ClassTransformer {
         addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "safeSendTitle", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
         addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "safeOpenInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
         addMapping("closeInventory", "()V", "safeCloseInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)V");
+        addMapping("teleport", "(Lorg/bukkit/Location;)Z", "safeTeleport", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;)Z");
     }
 
     public PlayerTransformer(Logger logger, String relocatedPatcherPath) {

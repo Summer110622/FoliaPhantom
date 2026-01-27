@@ -1909,4 +1909,38 @@ public final class FoliaPatcher {
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
     }
+
+    public static org.bukkit.OfflinePlayer getOfflinePlayer(org.bukkit.Server server, String name) {
+        if (!isFolia() || Bukkit.isPrimaryThread()) {
+            return server.getOfflinePlayer(name);
+        }
+        try {
+            return Bukkit.getScheduler().callSyncMethod(getPlugin(), () -> server.getOfflinePlayer(name)).get(API_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.lang.InterruptedException | java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new java.lang.RuntimeException("Failed to get offline player " + name, e);
+            }
+            return null;
+        }
+    }
+
+    public static org.bukkit.OfflinePlayer getOfflinePlayer(org.bukkit.Server server, java.util.UUID uuid) {
+        if (!isFolia() || Bukkit.isPrimaryThread()) {
+            return server.getOfflinePlayer(uuid);
+        }
+        try {
+            return Bukkit.getScheduler().callSyncMethod(getPlugin(), () -> server.getOfflinePlayer(uuid)).get(API_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (java.lang.InterruptedException | java.util.concurrent.ExecutionException | java.util.concurrent.TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new java.lang.RuntimeException("Failed to get offline player " + uuid, e);
+            }
+            return null;
+        }
+    }
+
+    private static Plugin getPlugin() {
+        // This is a bit of a hack, but it's the best we can do without a direct plugin reference.
+        // We get the plugin that owns this class, which will be the patched plugin.
+        return org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
+    }
 }

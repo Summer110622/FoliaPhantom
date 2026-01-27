@@ -174,7 +174,8 @@ public class CLI {
             }
 
             if (PluginPatcher.isFoliaSupported(inputJar)) {
-                LOGGER.warning("This plugin already appears to be Folia-supported. Patching anyway.");
+                LOGGER.info("Skipping " + inputJar.getName() + " as it is already Folia-supported.");
+                return false;
             }
 
             File outputJar = new File(outputDir, "patched-" + inputJar.getName());

@@ -1706,6 +1706,77 @@ public final class FoliaPatcher {
         }
     }
 
+    public static int safeGetStatistic(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.Statistic statistic) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getStatistic(statistic);
+        } else {
+            if (FIRE_AND_FORGET) {
+                return 0;
+            }
+            CompletableFuture<Integer> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.getStatistic(statistic));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                handleException("Failed to get statistic " + statistic.name() + " for player " + player.getName(), e);
+                return 0;
+            }
+        }
+    }
+
+    public static int safeGetStatistic(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.Statistic statistic, org.bukkit.Material material) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getStatistic(statistic, material);
+        } else {
+            if (FIRE_AND_FORGET) {
+                return 0;
+            }
+            CompletableFuture<Integer> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.getStatistic(statistic, material));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                handleException("Failed to get statistic " + statistic.name() + " for player " + player.getName(), e);
+                return 0;
+            }
+        }
+    }
+
+    public static int safeGetStatistic(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.Statistic statistic, org.bukkit.entity.EntityType entityType) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.getStatistic(statistic, entityType);
+        } else {
+            if (FIRE_AND_FORGET) {
+                return 0;
+            }
+            CompletableFuture<Integer> future = new CompletableFuture<>();
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.getStatistic(statistic, entityType));
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                handleException("Failed to get statistic " + statistic.name() + " for player " + player.getName(), e);
+                return 0;
+            }
+        }
+    }
     // --- Thread-Safe Entity Operations ---
 
     public static void safeRemove(Plugin plugin, Entity entity) {

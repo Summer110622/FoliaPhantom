@@ -760,34 +760,6 @@ public final class FoliaPatcher {
     }
 
     /**
-     * Safely teleports a player to a new location.
-     * If not on the main thread, this will use async teleport and block for the result.
-     */
-    public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Player player, Location location) {
-        if (Bukkit.isPrimaryThread()) {
-            return player.teleport(location);
-        } else {
-            if (FIRE_AND_FORGET) {
-                player.teleportAsync(location);
-                return true;
-            }
-            try {
-                // We use teleportAsync and wait for it to complete.
-                return player.teleportAsync(location).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to teleport player " + player.getName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
-                return false;
-            }
-        }
-    }
-
-    /**
      * Safely drops an item at the specified location.
      */
     public static org.bukkit.entity.Item safeDropItem(Plugin plugin, World world, Location location, ItemStack item) {
@@ -1665,6 +1637,34 @@ public final class FoliaPatcher {
             player.closeInventory();
         } else {
             player.getScheduler().run(plugin, task -> player.closeInventory(), null);
+        }
+    }
+
+    /**
+     * Safely teleports a player to a new location.
+     * If not on the main thread, this will use async teleport and block for the result.
+     */
+    public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Player player, Location location) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.teleport(location);
+        } else {
+            if (FIRE_AND_FORGET) {
+                player.teleportAsync(location);
+                return true;
+            }
+            try {
+                // We use teleportAsync and wait for it to complete.
+                return player.teleportAsync(location).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to teleport player " + player.getName(), e);
+                }
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport player " + player.getName(), e);
+                return false;
+            }
         }
     }
 

@@ -27,17 +27,17 @@ public class PlayerTransformer implements ClassTransformer {
 
     static {
         // Player methods
-        addMapping("sendMessage", "(Ljava/lang/String;)V", "safeSendMessage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
-        addMapping("sendMessage", "([Ljava/lang/String;)V", "safeSendMessages", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;[Ljava/lang/String;)V");
-        addMapping("kickPlayer", "(Ljava/lang/String;)V", "safeKickPlayer", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
-        addMapping("setHealth", "(D)V", "safeSetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;D)V");
-        addMapping("setFoodLevel", "(I)V", "safeSetFoodLevel", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
-        addMapping("giveExp", "(I)V", "safeGiveExp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
-        addMapping("setLevel", "(I)V", "safeSetLevel", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
-        addMapping("playSound", "(Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V", "safePlaySound", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V");
-        addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "safeSendTitle", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
-        addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "safeOpenInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
-        addMapping("closeInventory", "()V", "safeCloseInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)V");
+        addMapping("sendMessage", "(Ljava/lang/String;)V", "safeSendMessage", "(Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
+        addMapping("sendMessage", "([Ljava/lang/String;)V", "safeSendMessages", "(Lorg/bukkit/entity/Player;[Ljava/lang/String;)V");
+        addMapping("kickPlayer", "(Ljava/lang/String;)V", "safeKickPlayer", "(Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
+        addMapping("setHealth", "(D)V", "safeSetHealth", "(Lorg/bukkit/entity/Player;D)V");
+        addMapping("setFoodLevel", "(I)V", "safeSetFoodLevel", "(Lorg/bukkit/entity/Player;I)V");
+        addMapping("giveExp", "(I)V", "safeGiveExp", "(Lorg/bukkit/entity/Player;I)V");
+        addMapping("setLevel", "(I)V", "safeSetLevel", "(Lorg/bukkit/entity/Player;I)V");
+        addMapping("playSound", "(Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V", "safePlaySound", "(Lorg/bukkit/entity/Player;Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V");
+        addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "safeSendTitle", "(Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
+        addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "safeOpenInventory", "(Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
+        addMapping("closeInventory", "()V", "safeCloseInventory", "(Lorg/bukkit/entity/Player;)V");
     }
 
     public PlayerTransformer(Logger logger, String relocatedPatcherPath) {
@@ -109,42 +109,8 @@ public class PlayerTransformer implements ClassTransformer {
             }
 
             private void redirectCall(String owner, MethodMapping mapping) {
-                // Store arguments and the player instance in local variables
-                Type[] args = Type.getArgumentTypes(mapping.originalDesc);
-                int[] locals = new int[args.length];
-                for (int i = args.length - 1; i >= 0; i--) {
-                    locals[i] = newLocal(args[i]);
-                    storeLocal(locals[i]);
-                }
-
-                int playerLocal = newLocal(Type.getObjectType(owner));
-                storeLocal(playerLocal);
-
-                // Load the plugin instance
-                loadPluginInstance();
-
-                // Load the player instance
-                loadLocal(playerLocal);
-
-                // Load arguments
-                for (int i = 0; i < args.length; i++) {
-                    loadLocal(locals[i]);
-                }
-
                 // Call the static FoliaPatcher method
                 super.visitMethodInsn(INVOKESTATIC, relocatedPatcherPath + "/FoliaPatcher", mapping.newName, mapping.newDesc, false);
-            }
-
-            private void loadPluginInstance() {
-                if (isJavaPlugin) {
-                    visitVarInsn(ALOAD, 0); // this
-                } else if (pluginField != null) {
-                    visitVarInsn(ALOAD, 0); // this
-                    visitFieldInsn(GETFIELD, className, pluginField, "Lorg/bukkit/plugin/Plugin;");
-                } else {
-                    // This should not happen due to the check in visitMethod
-                    throw new IllegalStateException("Could not find a Plugin instance in " + className);
-                }
             }
         }
     }
@@ -157,7 +123,7 @@ public class PlayerTransformer implements ClassTransformer {
         MethodMapping(String newName, String newDesc) {
             this.newName = newName;
             this.newDesc = newDesc;
-            this.originalDesc = newDesc.replace("(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;", "(");
+            this.originalDesc = newDesc.replace("(Lorg/bukkit/entity/Player;", "(");
         }
     }
 }

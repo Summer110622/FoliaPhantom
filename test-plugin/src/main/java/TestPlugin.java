@@ -124,6 +124,40 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testsendmessage")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing sendMessage from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeSendMessage helper.
+                        player.sendMessage("This message was sent asynchronously!");
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during sendMessage test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("testkick")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing kickPlayer from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call will be transformed to use the safeKickPlayer helper.
+                        player.kickPlayer("You have been kicked by the test command!");
+                    } catch (Exception e) {
+                        getLogger().severe("Caught unexpected exception during kickPlayer test: " + e.getClass().getName());
+                        e.printStackTrace();
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

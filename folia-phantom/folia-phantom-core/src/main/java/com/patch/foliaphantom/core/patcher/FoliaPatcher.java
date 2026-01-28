@@ -1557,82 +1557,92 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe Player Operations ---
 
-    public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String message) {
+    public static void safeSendMessage(org.bukkit.entity.Player player, String message) {
         if (Bukkit.isPrimaryThread()) {
             player.sendMessage(message);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.sendMessage(message), null);
         }
     }
 
-    public static void safeSendMessages(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
+    public static void safeSendMessages(org.bukkit.entity.Player player, String[] messages) {
         if (Bukkit.isPrimaryThread()) {
             player.sendMessage(messages);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.sendMessage(messages), null);
         }
     }
 
-    public static void safeKickPlayer(Plugin plugin, org.bukkit.entity.Player player, String message) {
+    public static void safeKickPlayer(org.bukkit.entity.Player player, String message) {
         if (Bukkit.isPrimaryThread()) {
             player.kickPlayer(message);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.kickPlayer(message), null);
         }
     }
 
-    public static void safeSetHealth(Plugin plugin, org.bukkit.entity.Player player, double health) {
+    public static void safeSetHealth(org.bukkit.entity.Player player, double health) {
         if (Bukkit.isPrimaryThread()) {
             player.setHealth(health);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.setHealth(health), null);
         }
     }
 
-    public static void safeSetFoodLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+    public static void safeSetFoodLevel(org.bukkit.entity.Player player, int level) {
         if (Bukkit.isPrimaryThread()) {
             player.setFoodLevel(level);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.setFoodLevel(level), null);
         }
     }
 
-    public static void safeGiveExp(Plugin plugin, org.bukkit.entity.Player player, int amount) {
+    public static void safeGiveExp(org.bukkit.entity.Player player, int amount) {
         if (Bukkit.isPrimaryThread()) {
             player.giveExp(amount);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.giveExp(amount), null);
         }
     }
 
-    public static void safeSetLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+    public static void safeSetLevel(org.bukkit.entity.Player player, int level) {
         if (Bukkit.isPrimaryThread()) {
             player.setLevel(level);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.setLevel(level), null);
         }
     }
 
-    public static void safePlaySound(Plugin plugin, org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
+    public static void safePlaySound(org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
         if (Bukkit.isPrimaryThread()) {
             player.playSound(location, sound, volume, pitch);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.playSound(location, sound, volume, pitch), null);
         }
     }
 
-    public static void safeSendTitle(Plugin plugin, org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+    public static void safeSendTitle(org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if (Bukkit.isPrimaryThread()) {
             player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.sendTitle(title, subtitle, fadeIn, stay, fadeOut), null);
         }
     }
 
-    public static org.bukkit.inventory.InventoryView safeOpenInventory(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
+    public static org.bukkit.inventory.InventoryView safeOpenInventory(org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
         if (Bukkit.isPrimaryThread()) {
             return player.openInventory(inventory);
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             if (FIRE_AND_FORGET) {
                 player.getScheduler().run(plugin, task -> player.openInventory(inventory), null);
                 return null;
@@ -1660,10 +1670,11 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeCloseInventory(Plugin plugin, org.bukkit.entity.Player player) {
+    public static void safeCloseInventory(org.bukkit.entity.Player player) {
         if (Bukkit.isPrimaryThread()) {
             player.closeInventory();
         } else {
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
             player.getScheduler().run(plugin, task -> player.closeInventory(), null);
         }
     }

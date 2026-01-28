@@ -78,7 +78,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                  // At this point, the owner is interesting. Check the method name for specifics.
                 switch (owner) {
                     case "org/bukkit/entity/Player":
-                        if ("getHealth".equals(name)) needsPatching = true;
+                        if ("getHealth".equals(name) || "isOnline".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/Server":
                         if ("getOnlinePlayers".equals(name)) needsPatching = true;

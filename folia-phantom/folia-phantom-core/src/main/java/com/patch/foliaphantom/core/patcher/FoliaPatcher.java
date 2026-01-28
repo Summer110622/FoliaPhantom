@@ -166,6 +166,44 @@ public final class FoliaPatcher {
     }
 
     /**
+     * Safely checks if a player is online.
+     * If not on the main thread, this will schedule the call and block until it completes.
+     *
+     * @param player The player to check.
+     * @return true if the player is online, false otherwise.
+     */
+    public static boolean safeIsOnline(org.bukkit.entity.Player player) {
+        if (Bukkit.isPrimaryThread()) {
+            return player.isOnline();
+        } else {
+            if (FIRE_AND_FORGET) {
+                return false;
+            }
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Plugin plugin = org.bukkit.plugin.java.JavaPlugin.getProvidingPlugin(FoliaPatcher.class);
+            player.getScheduler().run(plugin, task -> {
+                try {
+                    future.complete(player.isOnline());
+                } catch (Exception e) {
+                    future.completeExceptionally(e);
+                }
+            }, null);
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (InterruptedException | ExecutionException e) {
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to check isOnline for player " + player.getName(), e);
+                return false;
+            } catch (TimeoutException e) {
+                if (FAIL_FAST) {
+                    throw new FoliaPatcherTimeoutException("Failed to check isOnline for player " + player.getName(), e);
+                }
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while checking isOnline for player " + player.getName(), e);
+                return false;
+            }
+        }
+    }
+
+    /**
      * Internal wrapper for Folia's ChunkGenerator.
      */
     public static class FoliaChunkGenerator extends org.bukkit.generator.ChunkGenerator {

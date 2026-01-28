@@ -124,6 +124,26 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testisonline")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing Player.isOnline() from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // This call should be transformed to FoliaPatcher.safeIsOnline
+                        boolean isOnline = player.isOnline();
+                        sender.sendMessage("Async isOnline check returned: " + isOnline);
+                    } catch (Exception e) {
+                        getLogger().log(Level.SEVERE, "Error in testisonline command", e);
+                        sender.sendMessage("An error occurred during the test. Check the console.");
+                    }
+                });
+            } else {
+                sender.sendMessage("This command can only be run by a player.");
+            }
+            return true;
+        }
+
         return false;
     }
 }

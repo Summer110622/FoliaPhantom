@@ -251,6 +251,7 @@ public class PluginPatcher {
             this.visitorTransformers = new ArrayList<>();
             visitorTransformers.add(new ServerBroadcastMessageTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new com.patch.foliaphantom.core.transformer.impl.ServerIsEmptyTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerGetWorldsTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetHighestBlockAtTransformer(logger, relocatedPatcherPath));

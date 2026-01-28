@@ -373,6 +373,32 @@ public final class FoliaPatcher {
         }
     }
 
+    public static boolean isPlayerListEmpty(final Plugin plugin) {
+        if (!isFolia()) {
+            return Bukkit.getOnlinePlayers().isEmpty();
+        }
+
+        if (FIRE_AND_FORGET) {
+            return true; // Safer default
+        }
+
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getOnlinePlayers().isEmpty());
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to check if player list is empty", e);
+            return true; // Safer default
+        }
+    }
+
     public static int safeGetOnlinePlayersSize(final Plugin plugin) {
         if (!isFolia()) {
             return Bukkit.getOnlinePlayers().size();

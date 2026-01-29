@@ -1,20 +1,8 @@
 name: TestPlugin
-version: 1.0
-main: TestPlugin
+version: 1.0.0
+main: com.testplugin.TestPlugin
 api-version: 1.17
 commands:
-  testremove:
-    description: "Tests removing a nearby entity."
-    usage: "/testremove"
-  testtimeout:
-    description: "Tests the API timeout functionality."
-    usage: "/testtimeout"
-  testgetonlineplayers:
-    description: "Tests the getOnlinePlayers transformation."
-    usage: "/testgetonlineplayers"
-  testhighestblock:
-    description: "Tests the getHighestBlockAt transformation."
-    usage: "/testhighestblock"
-  testversion:
-    description: "Tests the getVersion transformation."
-    usage: "/testversion"
+  testoffline:
+    description: "Tests the getOfflinePlayer transformer."
+    usage: "/testoffline"

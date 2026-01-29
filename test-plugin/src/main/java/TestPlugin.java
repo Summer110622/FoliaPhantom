@@ -124,6 +124,16 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testversion")) {
+            sender.sendMessage("Testing getVersion and getBukkitVersion...");
+            // These calls should be transformed to use the cached static fields
+            String serverVersion = Bukkit.getVersion();
+            String bukkitVersion = Bukkit.getBukkitVersion();
+            sender.sendMessage("Server Version: " + serverVersion);
+            sender.sendMessage("Bukkit Version: " + bukkitVersion);
+            return true;
+        }
+
         return false;
     }
 }

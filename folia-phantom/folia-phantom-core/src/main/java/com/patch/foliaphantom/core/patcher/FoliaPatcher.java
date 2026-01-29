@@ -10,6 +10,8 @@
  */
 package com.patch.foliaphantom.core.patcher;
 
+import org.bukkit.OfflinePlayer;
+import java.util.UUID;
 import com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
@@ -1918,5 +1920,55 @@ public final class FoliaPatcher {
 
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
+    }
+
+    // --- Thread-Safe OfflinePlayer Operations ---
+
+    /**
+     * Safely gets an offline player by name.
+     * This is a global operation that may involve I/O, so it uses a dedicated executor.
+     */
+    public static OfflinePlayer getOfflinePlayerByName(String name) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getOfflinePlayer(name);
+        }
+
+        Future<OfflinePlayer> future = worldGenExecutor.submit(() -> Bukkit.getOfflinePlayer(name));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get offline player " + name, e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get offline player " + name, e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting offline player " + name, e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely gets an offline player by UUID.
+     * This is a global operation that may involve I/O, so it uses a dedicated executor.
+     */
+    public static OfflinePlayer getOfflinePlayerByUUID(UUID uuid) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getOfflinePlayer(uuid);
+        }
+
+        Future<OfflinePlayer> future = worldGenExecutor.submit(() -> Bukkit.getOfflinePlayer(uuid));
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get offline player " + uuid, e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get offline player " + uuid, e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting offline player " + uuid, e);
+            return null;
+        }
     }
 }

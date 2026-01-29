@@ -101,6 +101,16 @@ public final class FoliaPatcher {
     private static final AtomicInteger taskIdCounter = new AtomicInteger(1000000);
     private static final Map<Integer, ScheduledTask> runningTasks = new ConcurrentHashMap<>();
 
+    /**
+     * Cached server version string to reduce repeated method calls.
+     */
+    public static final String CACHED_SERVER_VERSION = Bukkit.getVersion();
+
+    /**
+     * Cached Bukkit version string to reduce repeated method calls.
+     */
+    public static final String CACHED_BUKKIT_VERSION = Bukkit.getBukkitVersion();
+
     private FoliaPatcher() {
     }
 

@@ -103,7 +103,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                         }
                         break;
                     case "org/bukkit/Bukkit":
-                        if ("createWorld".equals(name)) needsPatching = true;
+                        if ("createWorld".equals(name) || "getOfflinePlayer".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/plugin/Plugin":
                         if ("getDefaultWorldGenerator".equals(name)) needsPatching = true;

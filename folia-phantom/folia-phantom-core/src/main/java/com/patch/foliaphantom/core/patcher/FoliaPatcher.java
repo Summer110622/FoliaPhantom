@@ -46,6 +46,7 @@ import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Consumer;
 import java.util.function.IntConsumer;
+import java.util.function.Supplier;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -1800,6 +1801,46 @@ public final class FoliaPatcher {
      */
     public static void executeAsync(Plugin plugin, Runnable task) {
         Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
+    }
+
+    /**
+     * Safely gets an offline player by name.
+     * This is a blocking operation that is offloaded to a separate thread.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(Plugin plugin, String name) {
+        return getOfflinePlayerInternal(() -> Bukkit.getOfflinePlayer(name), name);
+    }
+
+    /**
+     * Safely gets an offline player by UUID.
+     * This is a blocking operation that is offloaded to a separate thread.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(Plugin plugin, java.util.UUID uuid) {
+        return getOfflinePlayerInternal(() -> Bukkit.getOfflinePlayer(uuid), uuid.toString());
+    }
+
+    private static org.bukkit.OfflinePlayer getOfflinePlayerInternal(Supplier<org.bukkit.OfflinePlayer> supplier, String identifier) {
+        if (Bukkit.isPrimaryThread()) {
+            return supplier.get();
+        }
+
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+
+        try {
+            return CompletableFuture.supplyAsync(supplier, worldGenExecutor)
+                .get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get offline player " + identifier, e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) {
+                throw new FoliaPatcherTimeoutException("Failed to get offline player " + identifier, e);
+            }
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting offline player " + identifier, e);
+            return null;
+        }
     }
 
 

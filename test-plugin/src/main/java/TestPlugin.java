@@ -134,6 +134,34 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testofflineplayer")) {
+            sender.sendMessage("Testing getOfflinePlayer from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    // These calls will be transformed to use the safeGetOfflinePlayer helper.
+                    org.bukkit.OfflinePlayer playerByName = Bukkit.getOfflinePlayer("TestPlayer");
+                    org.bukkit.OfflinePlayer playerByUUID = Bukkit.getOfflinePlayer(java.util.UUID.randomUUID());
+
+                    if (playerByName != null) {
+                        sender.sendMessage("Success! Got offline player by name: " + playerByName.getName());
+                    } else {
+                        sender.sendMessage("Success! Got null for offline player by name, as expected.");
+                    }
+
+                    if (playerByUUID != null) {
+                        sender.sendMessage("Success! Got offline player by UUID: " + playerByUUID.getUniqueId());
+                    } else {
+                         sender.sendMessage("Success! Got null for offline player by UUID, as expected.");
+                    }
+
+                } catch (Exception e) {
+                    getLogger().severe("Caught unexpected exception during getOfflinePlayer test: " + e.getClass().getName());
+                    e.printStackTrace();
+                }
+            });
+            return true;
+        }
+
         return false;
     }
 }

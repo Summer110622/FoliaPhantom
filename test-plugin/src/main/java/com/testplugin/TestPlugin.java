@@ -10,5 +10,8 @@ public class TestPlugin extends JavaPlugin {
     public void onEnable() {
         // This is the call we want to transform
         Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(null, "test"));
+
+        // Add a call to getOfflinePlayer to test the new transformer
+        Bukkit.getOfflinePlayer("Notch");
     }
 }

@@ -2,6 +2,7 @@
 /argo/
 /dummy-plugin/
 /patched-plugins/
+/out/
 *.jar
 patched-jar-contents/
 

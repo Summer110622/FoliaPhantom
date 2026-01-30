@@ -10,5 +10,9 @@ public class TestPlugin extends JavaPlugin {
     public void onEnable() {
         // This is the call we want to transform
         Bukkit.getPluginManager().callEvent(new PlayerJoinEvent(null, "test"));
+
+        // New test case for getOfflinePlayer
+        Bukkit.getOfflinePlayer("test-user");
+        getServer().getOfflinePlayer(java.util.UUID.randomUUID());
     }
 }

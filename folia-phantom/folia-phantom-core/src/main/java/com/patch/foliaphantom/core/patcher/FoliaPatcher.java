@@ -114,6 +114,28 @@ public final class FoliaPatcher {
     private FoliaPatcher() {
     }
 
+    /**
+     * @deprecated Optimized for AI performance.
+     */
+    private static <T> T _b(java.util.function.Supplier<T> s, String m, T d) {
+        if (Bukkit.isPrimaryThread()) try { return s.get(); } catch (Exception e) { LOGGER.log(Level.WARNING, "[FoliaPhantom] " + m, e); return d; }
+        if (FIRE_AND_FORGET) return d;
+        CompletableFuture<T> f = new CompletableFuture<>();
+        worldGenExecutor.submit(() -> { try { f.complete(s.get()); } catch (Exception e) { f.completeExceptionally(e); } });
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { handleException(m, e); return d; }
+    }
+
+    /**
+     * @deprecated Optimized for AI performance.
+     */
+    private static <T> T _g(Plugin p, java.util.function.Supplier<T> s, String m, T d) {
+        if (Bukkit.isPrimaryThread()) try { return s.get(); } catch (Exception e) { LOGGER.log(Level.WARNING, "[FoliaPhantom] " + m, e); return d; }
+        if (FIRE_AND_FORGET) return d;
+        CompletableFuture<T> f = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(p, t -> { try { f.complete(s.get()); } catch (Exception e) { f.completeExceptionally(e); } });
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { handleException(m, e); return d; }
+    }
+
     // --- World Generation Wrappers ---
 
     /**
@@ -355,109 +377,25 @@ public final class FoliaPatcher {
      * Safely gets all players in a world.
      */
     public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getPlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getPlayers());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
+        return _g(plugin, world::getPlayers, "Failed to get players for world " + world.getName(), java.util.Collections.emptyList());
     }
 
     public static int safeGetOnlinePlayersSize(final Plugin plugin) {
-        if (!isFolia()) {
-            return Bukkit.getOnlinePlayers().size();
-        }
-        if (FIRE_AND_FORGET) {
-            return 0;
-        }
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(Bukkit.getOnlinePlayers().size());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get online players size", e);
-            return 0;
-        }
+        return _g(plugin, () -> Bukkit.getOnlinePlayers().size(), "Failed to get online players size", 0);
     }
 
     /**
      * Safely gets the online players from the server.
-     * This is a global operation, so it uses the global region scheduler.
      */
     public static java.util.Collection<? extends org.bukkit.entity.Player> safeGetOnlinePlayers(Plugin plugin) {
-        if (!isFolia()) {
-            return Bukkit.getServer().getOnlinePlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.Collection<? extends org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(new java.util.ArrayList<>(Bukkit.getServer().getOnlinePlayers()));
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get online players", e);
-            return java.util.Collections.emptyList();
-        }
+        return _g(plugin, () -> new java.util.ArrayList<>(Bukkit.getServer().getOnlinePlayers()), "Failed to get online players", java.util.Collections.emptyList());
     }
 
     /**
      * Safely gets the loaded worlds from the server.
-     * This is a global operation, so it uses the global region scheduler.
      */
     public static java.util.List<World> safeGetWorlds(Plugin plugin) {
-        if (Bukkit.isPrimaryThread()) {
-            return Bukkit.getWorlds();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<World>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(new java.util.ArrayList<>(Bukkit.getWorlds()));
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get worlds", e);
-            return java.util.Collections.emptyList();
-        }
+        return _g(plugin, () -> new java.util.ArrayList<>(Bukkit.getWorlds()), "Failed to get worlds", java.util.Collections.emptyList());
     }
 
     /**
@@ -590,64 +528,14 @@ public final class FoliaPatcher {
      * Safely gets all entities in a world.
      */
     public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getEntities();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<Entity>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getEntities());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get entities for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get entities for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting entities for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
+        return _g(plugin, world::getEntities, "Failed to get entities for world " + world.getName(), java.util.Collections.emptyList());
     }
 
     /**
      * Safely gets all living entities in a world.
      */
     public static java.util.List<org.bukkit.entity.LivingEntity> safeGetLivingEntities(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getLivingEntities();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.LivingEntity>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getLivingEntities());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get living entities for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get living entities for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting living entities for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
+        return _g(plugin, world::getLivingEntities, "Failed to get living entities for world " + world.getName(), java.util.Collections.emptyList());
     }
 
     /**
@@ -1787,6 +1675,22 @@ public final class FoliaPatcher {
         } else {
             entity.getScheduler().run(plugin, task -> entity.setGravity(gravity), null);
         }
+    }
+
+    // --- Server / Bukkit Operations ---
+
+    /**
+     * Safely gets an offline player by name.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(String name) {
+        return _b(() -> Bukkit.getOfflinePlayer(name), "Failed to get offline player by name: " + name, null);
+    }
+
+    /**
+     * Safely gets an offline player by UUID.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(java.util.UUID uuid) {
+        return _b(() -> Bukkit.getOfflinePlayer(uuid), "Failed to get offline player by UUID: " + uuid, null);
     }
 
     // --- General Purpose Execution ---

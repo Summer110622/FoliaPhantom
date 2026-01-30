@@ -13,7 +13,7 @@
 }
 
 #window-wrapper {
-    -fx-background-color: #0f172a;
+    -fx-background-color: transparent;
     -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.5), 20, 0, 0, 10);
 }
 

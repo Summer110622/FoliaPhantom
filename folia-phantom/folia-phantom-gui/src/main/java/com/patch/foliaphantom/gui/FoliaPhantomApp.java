@@ -7,11 +7,15 @@
 package com.patch.foliaphantom.gui;
 
 import com.patch.foliaphantom.core.PluginPatcher;
+import javafx.animation.AnimationTimer;
 import javafx.application.Application;
 import javafx.application.Platform;
 import javafx.geometry.Insets;
+import javafx.geometry.Point2D;
 import javafx.geometry.Pos;
 import javafx.scene.Scene;
+import javafx.scene.canvas.Canvas;
+import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.control.*;
 import javafx.scene.input.Dragboard;
 import javafx.scene.input.TransferMode;
@@ -29,6 +33,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.List;
+import java.util.Random;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -74,6 +79,11 @@ public class FoliaPhantomApp extends Application {
         StackPane root = new StackPane();
         root.setId("root-pane");
 
+        // Add particle canvas as background
+        ParticleCanvas particleCanvas = new ParticleCanvas(950, 650);
+        root.getChildren().add(particleCanvas);
+        particleCanvas.start();
+
         // Dragging logic
         root.setOnMousePressed(event -> {
             xOffset = event.getSceneX();
@@ -87,6 +97,7 @@ public class FoliaPhantomApp extends Application {
         // Main Layout: Sidebar (Left) + Content (Right)
         HBox mainLayout = new HBox(0);
         mainLayout.setId("main-container");
+        mainLayout.setBackground(new Background(new BackgroundFill(Color.TRANSPARENT, CornerRadii.EMPTY, Insets.EMPTY)));
 
         VBox sidebar = buildSidebar(primaryStage);
         VBox content = buildContentArea(primaryStage);
@@ -459,6 +470,107 @@ public class FoliaPhantomApp extends Application {
         @Override
         public String toString() {
             return String.format("%s (%.1f MB)", file.getName(), file.length() / (1024.0 * 1024.0));
+        }
+    }
+
+    // Inner class for Particle
+    static class Particle {
+        double x, y, vx, vy, radius;
+        Color color;
+
+        Particle(double x, double y, double vx, double vy, double radius, Color color) {
+            this.x = x;
+            this.y = y;
+            this.vx = vx;
+            this.vy = vy;
+            this.radius = radius;
+            this.color = color;
+        }
+
+        void update() {
+            x += vx;
+            y += vy;
+        }
+    }
+
+    // Inner class for Particle Canvas
+    class ParticleCanvas extends Canvas {
+        private static final int PARTICLE_COUNT = 150;
+        private static final double MAX_VELOCITY = 0.3;
+        private static final double MOUSE_INTERACTION_RADIUS = 200;
+        private static final double PARTICLE_CONNECTION_DISTANCE = 100;
+
+        private final List<Particle> particles = new ArrayList<>();
+        private final AnimationTimer timer;
+        private final Random random = new Random();
+        private Point2D mousePos = new Point2D(0, 0);
+
+        public ParticleCanvas(double width, double height) {
+            super(width, height);
+            for (int i = 0; i < PARTICLE_COUNT; i++) {
+                particles.add(createParticle());
+            }
+
+            setOnMouseMoved(e -> mousePos = new Point2D(e.getX(), e.getY()));
+            setOnMouseExited(e -> mousePos = new Point2D(-500, -500)); // Move mouse off-screen
+
+            timer = new AnimationTimer() {
+                @Override
+                public void handle(long now) {
+                    draw();
+                }
+            };
+        }
+
+        private void draw() {
+            GraphicsContext gc = getGraphicsContext2D();
+            gc.clearRect(0, 0, getWidth(), getHeight());
+
+            for (Particle p : particles) {
+                p.update();
+                checkBounds(p);
+
+                double distance = mousePos.distance(p.x, p.y);
+                double opacity = Math.max(0.05, 1 - distance / MOUSE_INTERACTION_RADIUS);
+
+                gc.setFill(new Color(p.color.getRed(), p.color.getGreen(), p.color.getBlue(), opacity));
+                gc.fillOval(p.x - p.radius, p.y - p.radius, p.radius * 2, p.radius * 2);
+
+                // Connect nearby particles
+                for (Particle other : particles) {
+                    double dist = Math.sqrt(Math.pow(p.x - other.x, 2) + Math.pow(p.y - other.y, 2));
+                    if (dist < PARTICLE_CONNECTION_DISTANCE) {
+                        double lineOpacity = Math.max(0, 0.5 - dist / PARTICLE_CONNECTION_DISTANCE);
+                        gc.setStroke(new Color(1, 1, 1, lineOpacity));
+                        gc.strokeLine(p.x, p.y, other.x, other.y);
+                    }
+                }
+            }
+        }
+
+        private Particle createParticle() {
+            double x = random.nextDouble() * getWidth();
+            double y = random.nextDouble() * getHeight();
+            double vx = (random.nextDouble() - 0.5) * MAX_VELOCITY;
+            double vy = (random.nextDouble() - 0.5) * MAX_VELOCITY;
+            double radius = random.nextDouble() * 1.5 + 1;
+            Color color = Color.rgb(random.nextInt(50) + 150, random.nextInt(50) + 150, 255, 0.8);
+            return new Particle(x, y, vx, vy, radius, color);
+        }
+
+        private void checkBounds(Particle p) {
+            if (p.x < -p.radius) p.x = getWidth() + p.radius;
+            if (p.x > getWidth() + p.radius) p.x = -p.radius;
+            if (p.y < -p.radius) p.y = getHeight() + p.radius;
+            if (p.y > getHeight() + p.radius) p.y = -p.radius;
+        }
+
+        public void start() {
+            timer.start();
+        }
+
+        public void stop() {
+            timer.stop();
         }
     }
 }

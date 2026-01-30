@@ -32,6 +32,7 @@ import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
+import java.util.UUID;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
@@ -115,6 +116,32 @@ public final class FoliaPatcher {
     }
 
     // --- World Generation Wrappers ---
+
+    /**
+     * Safely gets an offline player by name, offloading the blocking call to a worker thread.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(String name) {
+        Future<org.bukkit.OfflinePlayer> future = worldGenExecutor.submit(() -> Bukkit.getOfflinePlayer(name));
+        try {
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.severe("[FoliaPhantom] Failed to get offline player '" + name + "': " + e.getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Safely gets an offline player by UUID, offloading the blocking call to a worker thread.
+     */
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(UUID uuid) {
+        Future<org.bukkit.OfflinePlayer> future = worldGenExecutor.submit(() -> Bukkit.getOfflinePlayer(uuid));
+        try {
+            return future.get();
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.severe("[FoliaPhantom] Failed to get offline player '" + uuid + "': " + e.getMessage());
+            return null;
+        }
+    }
 
     /**
      * Wraps a ChunkGenerator to ensure Folia compatibility.

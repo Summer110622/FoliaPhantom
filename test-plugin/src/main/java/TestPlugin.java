@@ -134,6 +134,39 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testnew")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing new transformations from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // 1. Damageable#damage
+                        player.damage(1.0);
+                        player.damage(1.0, (org.bukkit.entity.Entity) player);
+                        player.sendMessage("Self-damaged 1.0");
+
+                        // 2. LivingEntity#setAI
+                        player.setAI(true);
+                        player.sendMessage("Set AI to true");
+
+                        // 3. Player#setGameMode
+                        player.setGameMode(org.bukkit.GameMode.SURVIVAL);
+                        player.sendMessage("Set GameMode to Survival");
+
+                        // 4. BlockState#update
+                        org.bukkit.block.BlockState state = player.getLocation().getBlock().getState();
+                        state.update();
+                        player.sendMessage("Updated block state at your feet");
+
+                        sender.sendMessage("New transformations test successful!");
+                    } catch (Exception e) {
+                        getLogger().log(Level.SEVERE, "Error in testnew command", e);
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

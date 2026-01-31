@@ -14,14 +14,19 @@ import com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Effect;
+import org.bukkit.GameMode;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
+import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.LivingEntity;
+import org.bukkit.entity.Player;
 import org.bukkit.event.Event;
 import org.bukkit.event.block.BlockEvent;
 import org.bukkit.event.entity.EntityEvent;
@@ -1786,6 +1791,61 @@ public final class FoliaPatcher {
             entity.setGravity(gravity);
         } else {
             entity.getScheduler().run(plugin, task -> entity.setGravity(gravity), null);
+        }
+    }
+
+    public static void safeDamage(Plugin plugin, Damageable entity, double amount) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.damage(amount);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.damage(amount), null);
+        }
+    }
+
+    public static void safeDamage(Plugin plugin, Damageable entity, double amount, Entity source) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.damage(amount, source);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.damage(amount, source), null);
+        }
+    }
+
+    public static void safeSetAI(Plugin plugin, LivingEntity entity, boolean ai) {
+        if (Bukkit.isPrimaryThread()) {
+            entity.setAI(ai);
+        } else {
+            entity.getScheduler().run(plugin, task -> entity.setAI(ai), null);
+        }
+    }
+
+    public static void safeSetGameMode(Plugin plugin, Player player, GameMode gameMode) {
+        if (Bukkit.isPrimaryThread()) {
+            player.setGameMode(gameMode);
+        } else {
+            player.getScheduler().run(plugin, task -> player.setGameMode(gameMode), null);
+        }
+    }
+
+    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state) {
+        return safeUpdateBlockState(plugin, state, false, true);
+    }
+
+    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state, boolean force) {
+        return safeUpdateBlockState(plugin, state, force, true);
+    }
+
+    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state, boolean force, boolean applyPhysics) {
+        if (Bukkit.isPrimaryThread()) {
+            return state.update(force, applyPhysics);
+        } else {
+            CompletableFuture<Boolean> future = new CompletableFuture<>();
+            Bukkit.getRegionScheduler().run(plugin, state.getLocation(), task -> future.complete(state.update(force, applyPhysics)));
+            try {
+                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+            } catch (Exception e) {
+                handleException("Failed to update block state", e);
+                return false;
+            }
         }
     }
 

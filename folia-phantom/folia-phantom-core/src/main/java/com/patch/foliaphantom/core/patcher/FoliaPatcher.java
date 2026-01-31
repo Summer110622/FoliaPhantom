@@ -35,6 +35,8 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -468,7 +470,7 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             Bukkit.getServer().broadcastMessage(message);
         } else {
-            Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.getServer().broadcastMessage(message));
+            _g(plugin, () -> Bukkit.getServer().broadcastMessage(message));
         }
     }
 
@@ -686,7 +688,7 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             block.setType(material);
         } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
+            _r(plugin, block.getLocation(), () -> block.setType(material));
         }
     }
 
@@ -1802,6 +1804,42 @@ public final class FoliaPatcher {
         Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
     }
 
+    /**
+     * AI-optimized blocking execution helper.
+     */
+    public static <T> T _b(Callable<T> task) {
+        Future<T> f = worldGenExecutor.submit(task);
+        try {
+            return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException | TimeoutException e) {
+            handleException("B-Exec failed", e);
+            return null;
+        }
+    }
+
+    /**
+     * AI-optimized global region execution helper.
+     */
+    public static void _g(Plugin p, Runnable r) {
+        Bukkit.getGlobalRegionScheduler().run(p, t -> r.run());
+    }
+
+    /**
+     * AI-optimized region-based execution helper.
+     */
+    public static void _r(Plugin p, Location l, Runnable r) {
+        Bukkit.getRegionScheduler().run(p, l, t -> r.run());
+    }
+
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(Plugin p, String n) {
+        if (Bukkit.isPrimaryThread()) return Bukkit.getOfflinePlayer(n);
+        return _b(() -> Bukkit.getOfflinePlayer(n));
+    }
+
+    public static org.bukkit.OfflinePlayer safeGetOfflinePlayer(Plugin p, UUID u) {
+        if (Bukkit.isPrimaryThread()) return Bukkit.getOfflinePlayer(u);
+        return _b(() -> Bukkit.getOfflinePlayer(u));
+    }
 
     // --- Legacy / Int-returning Method Mappings ---
 

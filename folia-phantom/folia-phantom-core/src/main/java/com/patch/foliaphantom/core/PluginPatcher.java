@@ -20,6 +20,7 @@ import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.InventoryTransformer;
 import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
+import com.patch.foliaphantom.core.transformer.impl.PluginEnableTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ScoreboardTransformer;
@@ -270,6 +271,7 @@ public class PluginPatcher {
             visitorTransformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerVersionTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new PluginEnableTransformer(logger, relocatedPatcherPath));
 
             this.nodeTransformers = new ArrayList<>();
             nodeTransformers.add(new AsyncEventHandlerTransformer(logger, relocatedPatcherPath, asyncEventHandlers));
@@ -571,6 +573,11 @@ public class PluginPatcher {
      * @return Modified plugin.yml content
      */
     private String addFoliaSupportedFlag(String pluginYml) {
+        // Add branding to version
+        if (pluginYml.lines().anyMatch(line -> line.trim().startsWith("version:"))) {
+            pluginYml = pluginYml.replaceAll("(?m)^(\\s*version:\\s*.*)$", "$1 (Folia Phantom Patched)");
+        }
+
         if (pluginYml.lines().anyMatch(line -> line.trim().startsWith("folia-supported:"))) {
             // Update existing flag
             return pluginYml.replaceAll("(?m)^\\s*folia-supported:.*$", "folia-supported: true");

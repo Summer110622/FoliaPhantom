@@ -111,6 +111,56 @@ public final class FoliaPatcher {
      */
     public static final String CACHED_BUKKIT_VERSION = Bukkit.getBukkitVersion();
 
+    private static org.bukkit.plugin.Plugin _p;
+    private static volatile java.util.Collection<? extends org.bukkit.entity.Player> _cp = java.util.Collections.emptyList();
+    private static volatile java.util.List<org.bukkit.World> _cw = java.util.Collections.emptyList();
+
+    public static void _i(org.bukkit.plugin.Plugin p) {
+        if (_p == null) {
+            _p = p;
+            org.bukkit.Bukkit.getGlobalRegionScheduler().runAtFixedRate(p, t -> {
+                _cp = new java.util.ArrayList<>(org.bukkit.Bukkit.getOnlinePlayers());
+                _cw = org.bukkit.Bukkit.getWorlds();
+            }, 1, 1);
+        }
+    }
+
+    public static java.util.Collection<? extends org.bukkit.entity.Player> _o() {
+        return _cp;
+    }
+
+    public static java.util.List<org.bukkit.World> _w() {
+        return _cw;
+    }
+
+    public static <T> T _b(java.util.concurrent.Callable<T> c, long t) {
+        if (org.bukkit.Bukkit.isPrimaryThread()) {
+            try { return c.call(); } catch (Exception e) { throw new RuntimeException(e); }
+        }
+        java.util.concurrent.CompletableFuture<T> f = new java.util.concurrent.CompletableFuture<>();
+        org.bukkit.Bukkit.getGlobalRegionScheduler().run(_p, task -> {
+            try { f.complete(c.call()); } catch (Exception e) { f.completeExceptionally(e); }
+        });
+        try {
+            return f.get(t, java.util.concurrent.TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            if (FAIL_FAST) throw new com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException("Timeout in _b", e);
+            return null;
+        }
+    }
+
+    public static void _g(Runnable r) {
+        org.bukkit.Bukkit.getGlobalRegionScheduler().execute(_p, r);
+    }
+
+    public static void _r(org.bukkit.Location l, Runnable r) {
+        org.bukkit.Bukkit.getRegionScheduler().execute(_p, l, r);
+    }
+
+    public static void _e(org.bukkit.entity.Entity e, Runnable r) {
+        e.getScheduler().execute(_p, r, null, 0);
+    }
+
     private FoliaPatcher() {
     }
 

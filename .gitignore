@@ -1,5 +1,6 @@
 # Build artifacts
 /argo/
+/out/
 /dummy-plugin/
 /patched-plugins/
 *.jar

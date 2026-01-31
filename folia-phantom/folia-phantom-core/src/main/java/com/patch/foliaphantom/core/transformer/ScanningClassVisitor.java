@@ -39,7 +39,10 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/World",
         "org/bukkit/Bukkit",
         "org/bukkit/plugin/Plugin",
-        "org/bukkit/entity/Entity"
+        "org/bukkit/entity/Entity",
+        "org/bukkit/entity/LivingEntity",
+        "org/bukkit/entity/Damageable",
+        "org/bukkit/block/BlockState"
     );
 
     public ScanningClassVisitor(String relocatedPatcherPath) {
@@ -77,9 +80,6 @@ public class ScanningClassVisitor extends ClassVisitor {
             if (INTERESTING_OWNERS.contains(owner)) {
                  // At this point, the owner is interesting. Check the method name for specifics.
                 switch (owner) {
-                    case "org/bukkit/entity/Player":
-                        if ("getHealth".equals(name)) needsPatching = true;
-                        break;
                     case "org/bukkit/Server":
                         if ("getOnlinePlayers".equals(name)) needsPatching = true;
                         break;
@@ -109,6 +109,9 @@ public class ScanningClassVisitor extends ClassVisitor {
                         if ("getDefaultWorldGenerator".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/entity/Entity":
+                    case "org/bukkit/entity/LivingEntity":
+                    case "org/bukkit/entity/Damageable":
+                    case "org/bukkit/entity/Player":
                          switch (name) {
                             case "remove":
                             case "setVelocity":
@@ -116,9 +119,16 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setFireTicks":
                             case "setCustomName":
                             case "setGravity":
+                            case "damage":
+                            case "setAI":
+                            case "setGameMode":
+                            case "getHealth":
                                 needsPatching = true;
                                 break;
                         }
+                        break;
+                    case "org/bukkit/block/BlockState":
+                        if ("update".equals(name)) needsPatching = true;
                         break;
                     // For other owners in the set, their presence alone is enough.
                     default:

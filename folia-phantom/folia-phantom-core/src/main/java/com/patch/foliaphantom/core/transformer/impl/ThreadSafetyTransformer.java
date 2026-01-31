@@ -154,6 +154,9 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     }
                     break;
                 case "org/bukkit/entity/Entity":
+                case "org/bukkit/entity/LivingEntity":
+                case "org/bukkit/entity/Player":
+                case "org/bukkit/entity/Damageable":
                     switch (name) {
                         case "remove":
                             if ("()V".equals(desc)) return transform(0, "safeRemove", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)V");
@@ -173,6 +176,26 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         case "setGravity":
                             if ("(Z)V".equals(desc)) return transform(1, "safeSetGravity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Z)V");
                             break;
+                        case "damage":
+                            if ("(D)V".equals(desc)) return transform(1, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;D)V");
+                            if ("(DLorg/bukkit/entity/Entity;)V".equals(desc)) return transform(2, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;DLorg/bukkit/entity/Entity;)V");
+                            break;
+                        case "setAI":
+                            if ("(Z)V".equals(desc)) return transform(1, "safeSetAI", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Z)V");
+                            break;
+                        case "setGameMode":
+                            if ("(Lorg/bukkit/GameMode;)V".equals(desc)) return transform(1, "safeSetGameMode", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/GameMode;)V");
+                            break;
+                        case "getHealth":
+                            if ("()D".equals(desc)) return transform(0, "safeGetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D");
+                            break;
+                    }
+                    break;
+                case "org/bukkit/block/BlockState":
+                    if ("update".equals(name)) {
+                        if ("()Z".equals(desc)) return transform(0, "safeUpdateBlockState", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/BlockState;)Z");
+                        if ("(Z)Z".equals(desc)) return transform(1, "safeUpdateBlockState", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/BlockState;Z)Z");
+                        if ("(ZZ)Z".equals(desc)) return transform(2, "safeUpdateBlockState", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/BlockState;ZZ)Z");
                     }
                     break;
             }

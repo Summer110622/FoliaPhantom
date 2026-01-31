@@ -102,15 +102,12 @@ public class ServerGetWorldsTransformer implements ClassTransformer {
                         pop(); // Pop the Server instance
                     }
 
-                    // Push the Plugin instance onto the stack.
-                    loadPluginInstance();
-
                     // Call the static FoliaPatcher method.
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetWorlds",
-                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/List;",
+                        "_w",
+                        "()Ljava/util/List;",
                         false
                     );
                     ServerGetWorldsTransformer.this.hasTransformed = true;

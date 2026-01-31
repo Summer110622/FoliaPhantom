@@ -39,6 +39,7 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/World",
         "org/bukkit/Bukkit",
         "org/bukkit/plugin/Plugin",
+        "org/bukkit/plugin/java/JavaPlugin",
         "org/bukkit/entity/Entity"
     );
 

@@ -42,7 +42,8 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
-        "org/bukkit/block/BlockState"
+        "org/bukkit/block/BlockState",
+        "org/bukkit/Chunk"
     );
 
     public ScanningClassVisitor(String relocatedPatcherPath) {
@@ -55,6 +56,14 @@ public class ScanningClassVisitor extends ClassVisitor {
      */
     public boolean needsPatching() {
         return needsPatching;
+    }
+
+    @Override
+    public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+        if ("org/bukkit/plugin/java/JavaPlugin".equals(superName)) {
+            needsPatching = true;
+        }
+        super.visit(version, access, name, signature, superName, interfaces);
     }
 
     @Override
@@ -123,6 +132,20 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "getNearbyEntities":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
+                                needsPatching = true;
+                                break;
+                        }
+                        break;
+                    case "org/bukkit/Chunk":
+                        switch (name) {
+                            case "getEntities":
+                            case "load":
+                            case "unload":
+                            case "isLoaded":
                                 needsPatching = true;
                                 break;
                         }

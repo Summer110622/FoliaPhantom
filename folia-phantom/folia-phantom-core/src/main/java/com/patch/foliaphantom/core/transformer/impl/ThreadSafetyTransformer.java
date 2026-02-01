@@ -153,6 +153,22 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         return transform(0, "safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
                     }
                     break;
+                case "org/bukkit/Chunk":
+                    switch (name) {
+                        case "getEntities":
+                            if ("()[Lorg/bukkit/entity/Entity;".equals(desc)) return transform(0, "safeGetChunkEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;)[Lorg/bukkit/entity/Entity;");
+                            break;
+                        case "load":
+                            if ("(Z)Z".equals(desc)) return transform(1, "safeLoadChunk", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;Z)Z");
+                            break;
+                        case "unload":
+                            if ("(Z)Z".equals(desc)) return transform(1, "safeUnloadChunk", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;Z)Z");
+                            break;
+                        case "isLoaded":
+                            if ("()Z".equals(desc)) return transform(0, "safeIsChunkLoaded", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;)Z");
+                            break;
+                    }
+                    break;
                 case "org/bukkit/entity/Entity":
                 case "org/bukkit/entity/LivingEntity":
                 case "org/bukkit/entity/Player":
@@ -188,6 +204,18 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                             break;
                         case "getHealth":
                             if ("()D".equals(desc)) return transform(0, "safeGetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D");
+                            break;
+                        case "getNearbyEntities":
+                            if ("(DDD)Ljava/util/List;".equals(desc)) return transform(3, "safeGetNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;DDD)Ljava/util/List;");
+                            break;
+                        case "addPassenger":
+                            if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "safeAddPassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                            break;
+                        case "removePassenger":
+                            if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "safeRemovePassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                            break;
+                        case "eject":
+                            if ("()Z".equals(desc)) return transform(0, "safeEject", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)Z");
                             break;
                     }
                     break;

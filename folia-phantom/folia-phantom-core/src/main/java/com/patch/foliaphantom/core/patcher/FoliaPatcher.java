@@ -116,7 +116,59 @@ public final class FoliaPatcher {
      */
     public static final String CACHED_BUKKIT_VERSION = Bukkit.getBukkitVersion();
 
+    private static volatile java.util.Collection<? extends Player> _cp = Collections.emptyList();
+    private static volatile java.util.List<World> _cw = Collections.emptyList();
+    private static volatile boolean _ii = false;
+
     private FoliaPatcher() {
+    }
+
+    /**
+     * High-Performance API Mirroring initialization.
+     */
+    public static void _i(Plugin p) {
+        if (_ii) return;
+        _ii = true;
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(p, t -> {
+            _cp = new java.util.ArrayList<>(Bukkit.getOnlinePlayers());
+            _cw = new java.util.ArrayList<>(Bukkit.getWorlds());
+        }, 1L, 20L);
+    }
+
+    public static java.util.Collection<? extends Player> _o() {
+        return _cp;
+    }
+
+    public static java.util.List<World> _w() {
+        return _cw;
+    }
+
+    public static <T> T _b(CompletableFuture<T> f, String m) {
+        try {
+            return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (InterruptedException | ExecutionException e) {
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] " + m, e);
+            return null;
+        } catch (TimeoutException e) {
+            if (FAIL_FAST) throw new FoliaPatcherTimeoutException(m, e);
+            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out: " + m, e);
+            return null;
+        }
+    }
+
+    public static void _r(Plugin p, Location l, Consumer<ScheduledTask> c) {
+        if (Bukkit.isPrimaryThread()) c.accept(null);
+        else Bukkit.getRegionScheduler().run(p, l, c);
+    }
+
+    public static void _e(Plugin p, Entity e, Consumer<ScheduledTask> c) {
+        if (Bukkit.isPrimaryThread()) c.accept(null);
+        else e.getScheduler().run(p, c, null);
+    }
+
+    public static void _g(Plugin p, Consumer<ScheduledTask> c) {
+        if (Bukkit.isPrimaryThread()) c.accept(null);
+        else Bukkit.getGlobalRegionScheduler().run(p, c);
     }
 
     // --- World Generation Wrappers ---
@@ -151,33 +203,10 @@ public final class FoliaPatcher {
      * Safely gets the highest block at a given location.
      */
     public static Block safeGetHighestBlockAt(Plugin plugin, World world, int x, int z) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getHighestBlockAt(x, z);
-        } else {
-            if (FIRE_AND_FORGET) {
-                return null;
-            }
-            CompletableFuture<Block> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, world, x, z, task -> {
-                try {
-                    future.complete(world.getHighestBlockAt(x, z));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            });
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get highest block at " + x + ", " + z, e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to get highest block at " + x + ", " + z, e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting highest block at " + x + ", " + z, e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.getHighestBlockAt(x, z);
+        CompletableFuture<Block> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, world, x, z, t -> f.complete(world.getHighestBlockAt(x, z)));
+        return _b(f, "Failed to get highest block at " + x + ", " + z);
     }
 
     /**
@@ -360,55 +389,14 @@ public final class FoliaPatcher {
      * Safely gets all players in a world.
      */
     public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.getPlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(world.getPlayers());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException | ExecutionException e) {
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        } catch (TimeoutException e) {
-            if (FAIL_FAST) {
-                throw new FoliaPatcherTimeoutException("Failed to get players for world " + world.getName(), e);
-            }
-            LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting players for world " + world.getName(), e);
-            return java.util.Collections.emptyList();
-        }
+        if (Bukkit.isPrimaryThread()) return world.getPlayers();
+        CompletableFuture<java.util.List<org.bukkit.entity.Player>> f = new CompletableFuture<>();
+        _g(plugin, t -> f.complete(world.getPlayers()));
+        return _b(f, "Failed to get players for world " + world.getName());
     }
 
     public static int safeGetOnlinePlayersSize(final Plugin plugin) {
-        if (!isFolia()) {
-            return Bukkit.getOnlinePlayers().size();
-        }
-        if (FIRE_AND_FORGET) {
-            return 0;
-        }
-        CompletableFuture<Integer> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(Bukkit.getOnlinePlayers().size());
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get online players size", e);
-            return 0;
-        }
+        return _o().size();
     }
 
     /**
@@ -416,26 +404,7 @@ public final class FoliaPatcher {
      * This is a global operation, so it uses the global region scheduler.
      */
     public static java.util.Collection<? extends org.bukkit.entity.Player> safeGetOnlinePlayers(Plugin plugin) {
-        if (!isFolia()) {
-            return Bukkit.getServer().getOnlinePlayers();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.Collection<? extends org.bukkit.entity.Player>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(new java.util.ArrayList<>(Bukkit.getServer().getOnlinePlayers()));
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get online players", e);
-            return java.util.Collections.emptyList();
-        }
+        return _o();
     }
 
     /**
@@ -443,26 +412,7 @@ public final class FoliaPatcher {
      * This is a global operation, so it uses the global region scheduler.
      */
     public static java.util.List<World> safeGetWorlds(Plugin plugin) {
-        if (Bukkit.isPrimaryThread()) {
-            return Bukkit.getWorlds();
-        }
-        if (FIRE_AND_FORGET) {
-            return java.util.Collections.emptyList();
-        }
-        CompletableFuture<java.util.List<World>> future = new CompletableFuture<>();
-        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
-            try {
-                future.complete(new java.util.ArrayList<>(Bukkit.getWorlds()));
-            } catch (Exception e) {
-                future.completeExceptionally(e);
-            }
-        });
-        try {
-            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-        } catch (Exception e) {
-            handleException("Failed to get worlds", e);
-            return java.util.Collections.emptyList();
-        }
+        return _w();
     }
 
     /**
@@ -541,6 +491,70 @@ public final class FoliaPatcher {
     public static BukkitTask runTaskTimerAsynchronously_onRunnable(Runnable runnable, Plugin plugin, long delay,
             long period) {
         return runTaskTimerAsynchronously(null, plugin, runnable, delay, period);
+    }
+
+    // --- New API Redirections ---
+
+    public static java.util.List<Entity> safeGetNearbyEntities(Plugin plugin, Entity entity, double x, double y, double z) {
+        if (Bukkit.isPrimaryThread()) return entity.getNearbyEntities(x, y, z);
+        CompletableFuture<java.util.List<Entity>> f = new CompletableFuture<>();
+        _e(plugin, entity, t -> f.complete(entity.getNearbyEntities(x, y, z)));
+        return _b(f, "Failed to get nearby entities for entity " + entity.getUniqueId());
+    }
+
+    public static boolean safeAddPassenger(Plugin plugin, Entity entity, Entity passenger) {
+        if (Bukkit.isPrimaryThread()) return entity.addPassenger(passenger);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _e(plugin, entity, t -> f.complete(entity.addPassenger(passenger)));
+        Boolean r = _b(f, "Failed to add passenger to entity " + entity.getUniqueId());
+        return r != null && r;
+    }
+
+    public static boolean safeRemovePassenger(Plugin plugin, Entity entity, Entity passenger) {
+        if (Bukkit.isPrimaryThread()) return entity.removePassenger(passenger);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _e(plugin, entity, t -> f.complete(entity.removePassenger(passenger)));
+        Boolean r = _b(f, "Failed to remove passenger from entity " + entity.getUniqueId());
+        return r != null && r;
+    }
+
+    public static boolean safeEject(Plugin plugin, Entity entity) {
+        if (Bukkit.isPrimaryThread()) return entity.eject();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _e(plugin, entity, t -> f.complete(entity.eject()));
+        Boolean r = _b(f, "Failed to eject passengers from entity " + entity.getUniqueId());
+        return r != null && r;
+    }
+
+    public static Entity[] safeGetChunkEntities(Plugin plugin, org.bukkit.Chunk chunk) {
+        if (Bukkit.isPrimaryThread()) return chunk.getEntities();
+        CompletableFuture<Entity[]> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), t -> f.complete(chunk.getEntities()));
+        return _b(f, "Failed to get entities for chunk " + chunk.getX() + ", " + chunk.getZ());
+    }
+
+    public static boolean safeLoadChunk(Plugin plugin, org.bukkit.Chunk chunk, boolean generate) {
+        if (Bukkit.isPrimaryThread()) return chunk.load(generate);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), t -> f.complete(chunk.load(generate)));
+        Boolean r = _b(f, "Failed to load chunk " + chunk.getX() + ", " + chunk.getZ());
+        return r != null && r;
+    }
+
+    public static boolean safeUnloadChunk(Plugin plugin, org.bukkit.Chunk chunk, boolean save) {
+        if (Bukkit.isPrimaryThread()) return chunk.unload(save);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), t -> f.complete(chunk.unload(save)));
+        Boolean r = _b(f, "Failed to unload chunk " + chunk.getX() + ", " + chunk.getZ());
+        return r != null && r;
+    }
+
+    public static boolean safeIsChunkLoaded(Plugin plugin, org.bukkit.Chunk chunk) {
+        if (Bukkit.isPrimaryThread()) return chunk.isLoaded();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(plugin, chunk.getWorld(), chunk.getX(), chunk.getZ(), t -> f.complete(chunk.isLoaded()));
+        Boolean r = _b(f, "Failed to check if chunk is loaded " + chunk.getX() + ", " + chunk.getZ());
+        return r != null && r;
     }
 
     /**
@@ -688,30 +702,18 @@ public final class FoliaPatcher {
     }
 
     public static void safeSetBlockType(Plugin plugin, Block block, org.bukkit.Material material) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
-        }
+        _r(plugin, block.getLocation(), t -> block.setType(material));
     }
 
     public static void safeSetBlockTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
-        }
+        _r(plugin, block.getLocation(), t -> block.setType(material, applyPhysics));
     }
 
     /**
      * Safely sets the block data for a block.
      */
     public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setBlockData(data);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
-        }
+        _r(plugin, block.getLocation(), t -> block.setBlockData(data));
     }
 
     /**
@@ -719,47 +721,17 @@ public final class FoliaPatcher {
      * If not on the main thread, this will schedule the spawn and block until it completes.
      */
     public static <T extends Entity> T safeSpawnEntity(Plugin plugin, World world, Location location, Class<T> clazz) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.spawn(location, clazz);
-        } else {
-            CompletableFuture<T> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> {
-                try {
-                    future.complete(world.spawn(location, clazz));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            });
-
-            if (FIRE_AND_FORGET) {
-                return null;
-            }
-
-            try {
-                // Block for a short time to prevent server hangs
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to spawn entity of type " + clazz.getSimpleName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to spawn entity of type " + clazz.getSimpleName(), e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.spawn(location, clazz);
+        CompletableFuture<T> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.spawn(location, clazz)));
+        return _b(f, "Failed to spawn entity of type " + clazz.getSimpleName());
     }
 
     /**
      * Safely sets the block data for a block.
      */
     public static void safeSetBlockDataWithPhysics(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setBlockData(data, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
-        }
+        _r(plugin, block.getLocation(), t -> block.setBlockData(data, applyPhysics));
     }
 
     /**
@@ -769,7 +741,6 @@ public final class FoliaPatcher {
         if (Bukkit.isPrimaryThread()) {
             world.loadChunk(x, z, generate);
         } else {
-            // execute() is better for this as it doesn't imply a delay
             Bukkit.getRegionScheduler().execute(plugin, world, x, z, () -> world.loadChunk(x, z, generate));
         }
     }
@@ -806,206 +777,77 @@ public final class FoliaPatcher {
      * Safely drops an item at the specified location.
      */
     public static org.bukkit.entity.Item safeDropItem(Plugin plugin, World world, Location location, ItemStack item) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.dropItem(location, item);
-        } else {
-            CompletableFuture<org.bukkit.entity.Item> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> {
-                try {
-                    future.complete(world.dropItem(location, item));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            });
-            if (FIRE_AND_FORGET) {
-                return null;
-            }
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to drop item", e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item", e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.dropItem(location, item);
+        CompletableFuture<org.bukkit.entity.Item> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.dropItem(location, item)));
+        return _b(f, "Failed to drop item");
     }
 
     /**
      * Safely drops an item naturally at the specified location.
      */
     public static org.bukkit.entity.Item safeDropItemNaturally(Plugin plugin, World world, Location location, ItemStack item) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.dropItemNaturally(location, item);
-        } else {
-            CompletableFuture<org.bukkit.entity.Item> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> {
-                try {
-                    future.complete(world.dropItemNaturally(location, item));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            });
-            if (FIRE_AND_FORGET) {
-                return null;
-            }
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to drop item naturally", e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to drop item naturally", e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.dropItemNaturally(location, item);
+        CompletableFuture<org.bukkit.entity.Item> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.dropItemNaturally(location, item)));
+        return _b(f, "Failed to drop item naturally");
     }
 
     /**
      * Safely creates an explosion. Using the modern method signature.
      */
     public static boolean safeCreateExplosion(Plugin plugin, World world, Location location, float power, boolean setFire, boolean breakBlocks) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.createExplosion(location, power, setFire, breakBlocks);
-        } else {
-            if (FIRE_AND_FORGET) {
-                Bukkit.getRegionScheduler().run(plugin, location, task -> world.createExplosion(location, power, setFire, breakBlocks));
-                return true;
-            }
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.createExplosion(location, power, setFire, breakBlocks)));
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to create explosion", e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to create explosion", e);
-                return false;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.createExplosion(location, power, setFire, breakBlocks);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.createExplosion(location, power, setFire, breakBlocks)));
+        Boolean r = _b(f, "Failed to create explosion");
+        return r != null && r;
     }
 
     /**
      * Safely plays a particle effect.
      */
     public static <T> void safePlayEffect(Plugin plugin, World world, Location location, Effect effect, T data) {
-        if (Bukkit.isPrimaryThread()) {
-            world.playEffect(location, effect, data);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, location, task -> world.playEffect(location, effect, data));
-        }
+        _r(plugin, location, t -> world.playEffect(location, effect, data));
     }
 
     /**
      * Safely plays a sound.
      */
     public static void safePlaySound(Plugin plugin, World world, Location location, Sound sound, float volume, float pitch) {
-        if (Bukkit.isPrimaryThread()) {
-            world.playSound(location, sound, volume, pitch);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, location, task -> world.playSound(location, sound, volume, pitch));
-        }
+        _r(plugin, location, t -> world.playSound(location, sound, volume, pitch));
     }
 
     /**
      * Safely strikes lightning.
      */
     public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.strikeLightning(location);
-        } else {
-            CompletableFuture<org.bukkit.entity.LightningStrike> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> {
-                try {
-                    future.complete(world.strikeLightning(location));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            });
-            if (FIRE_AND_FORGET) {
-                return null;
-            }
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to strike lightning", e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to strike lightning", e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.strikeLightning(location);
+        CompletableFuture<org.bukkit.entity.LightningStrike> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.strikeLightning(location)));
+        return _b(f, "Failed to strike lightning");
     }
 
     /**
      * Safely generates a tree.
      */
     public static boolean safeGenerateTree(Plugin plugin, World world, Location location, TreeType type) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.generateTree(location, type);
-        } else {
-            if (FIRE_AND_FORGET) {
-                Bukkit.getRegionScheduler().run(plugin, location, task -> world.generateTree(location, type));
-                return true;
-            }
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            Bukkit.getRegionScheduler().run(plugin, location, task -> future.complete(world.generateTree(location, type)));
-            try {
-                return future.get(500, TimeUnit.MILLISECONDS); // Tree gen can be slow
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to generate tree", e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to generate tree", e);
-                return false;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.generateTree(location, type);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _r(plugin, location, t -> f.complete(world.generateTree(location, type)));
+        Boolean r = _b(f, "Failed to generate tree");
+        return r != null && r;
     }
 
     /**
      * Safely sets a game rule. This is a global operation.
      */
     public static <T> boolean safeSetGameRule(Plugin plugin, World world, GameRule<T> rule, T value) {
-        if (Bukkit.isPrimaryThread()) {
-            return world.setGameRule(rule, value);
-        } else {
-            if (FIRE_AND_FORGET) {
-                Bukkit.getGlobalRegionScheduler().run(plugin, task -> world.setGameRule(rule, value));
-                return true;
-            }
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            // Game rules are global, so use the global scheduler
-            Bukkit.getGlobalRegionScheduler().run(plugin, task -> future.complete(world.setGameRule(rule, value)));
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to set game rule " + rule.getName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to set game rule " + rule.getName(), e);
-                return false;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return world.setGameRule(rule, value);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _g(plugin, t -> f.complete(world.setGameRule(rule, value)));
+        Boolean r = _b(f, "Failed to set game rule " + rule.getName());
+        return r != null && r;
     }
 
     // --- Thread-Safe Scoreboard Operations ---
@@ -1573,114 +1415,50 @@ public final class FoliaPatcher {
     // --- Thread-Safe Player Operations ---
 
     public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String message) {
-        if (Bukkit.isPrimaryThread()) {
-            player.sendMessage(message);
-        } else {
-            player.getScheduler().run(plugin, task -> player.sendMessage(message), null);
-        }
+        _e(plugin, player, t -> player.sendMessage(message));
     }
 
     public static void safeSendMessages(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
-        if (Bukkit.isPrimaryThread()) {
-            player.sendMessage(messages);
-        } else {
-            player.getScheduler().run(plugin, task -> player.sendMessage(messages), null);
-        }
+        _e(plugin, player, t -> player.sendMessage(messages));
     }
 
     public static void safeKickPlayer(Plugin plugin, org.bukkit.entity.Player player, String message) {
-        if (Bukkit.isPrimaryThread()) {
-            player.kickPlayer(message);
-        } else {
-            player.getScheduler().run(plugin, task -> player.kickPlayer(message), null);
-        }
+        _e(plugin, player, t -> player.kickPlayer(message));
     }
 
     public static void safeSetHealth(Plugin plugin, org.bukkit.entity.Player player, double health) {
-        if (Bukkit.isPrimaryThread()) {
-            player.setHealth(health);
-        } else {
-            player.getScheduler().run(plugin, task -> player.setHealth(health), null);
-        }
+        _e(plugin, player, t -> player.setHealth(health));
     }
 
     public static void safeSetFoodLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
-        if (Bukkit.isPrimaryThread()) {
-            player.setFoodLevel(level);
-        } else {
-            player.getScheduler().run(plugin, task -> player.setFoodLevel(level), null);
-        }
+        _e(plugin, player, t -> player.setFoodLevel(level));
     }
 
     public static void safeGiveExp(Plugin plugin, org.bukkit.entity.Player player, int amount) {
-        if (Bukkit.isPrimaryThread()) {
-            player.giveExp(amount);
-        } else {
-            player.getScheduler().run(plugin, task -> player.giveExp(amount), null);
-        }
+        _e(plugin, player, t -> player.giveExp(amount));
     }
 
     public static void safeSetLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
-        if (Bukkit.isPrimaryThread()) {
-            player.setLevel(level);
-        } else {
-            player.getScheduler().run(plugin, task -> player.setLevel(level), null);
-        }
+        _e(plugin, player, t -> player.setLevel(level));
     }
 
     public static void safePlaySound(Plugin plugin, org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
-        if (Bukkit.isPrimaryThread()) {
-            player.playSound(location, sound, volume, pitch);
-        } else {
-            player.getScheduler().run(plugin, task -> player.playSound(location, sound, volume, pitch), null);
-        }
+        _e(plugin, player, t -> player.playSound(location, sound, volume, pitch));
     }
 
     public static void safeSendTitle(Plugin plugin, org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
-        if (Bukkit.isPrimaryThread()) {
-            player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
-        } else {
-            player.getScheduler().run(plugin, task -> player.sendTitle(title, subtitle, fadeIn, stay, fadeOut), null);
-        }
+        _e(plugin, player, t -> player.sendTitle(title, subtitle, fadeIn, stay, fadeOut));
     }
 
     public static org.bukkit.inventory.InventoryView safeOpenInventory(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
-        if (Bukkit.isPrimaryThread()) {
-            return player.openInventory(inventory);
-        } else {
-            if (FIRE_AND_FORGET) {
-                player.getScheduler().run(plugin, task -> player.openInventory(inventory), null);
-                return null;
-            }
-            CompletableFuture<org.bukkit.inventory.InventoryView> future = new CompletableFuture<>();
-            player.getScheduler().run(plugin, task -> {
-                try {
-                    future.complete(player.openInventory(inventory));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            }, null);
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
-                return null;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to open inventory for player " + player.getName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to open inventory for player " + player.getName(), e);
-                return null;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return player.openInventory(inventory);
+        CompletableFuture<org.bukkit.inventory.InventoryView> f = new CompletableFuture<>();
+        _e(plugin, player, t -> f.complete(player.openInventory(inventory)));
+        return _b(f, "Failed to open inventory for player " + player.getName());
     }
 
     public static void safeCloseInventory(Plugin plugin, org.bukkit.entity.Player player) {
-        if (Bukkit.isPrimaryThread()) {
-            player.closeInventory();
-        } else {
-            player.getScheduler().run(plugin, task -> player.closeInventory(), null);
-        }
+        _e(plugin, player, t -> player.closeInventory());
     }
 
     /**
@@ -1692,138 +1470,57 @@ public final class FoliaPatcher {
      * @return The player's health, or 0.0 if the operation times out or fails.
      */
     public static double safeGetHealth(Plugin plugin, org.bukkit.entity.Player player) {
-        if (Bukkit.isPrimaryThread()) {
-            return player.getHealth();
-        } else {
-            if (FIRE_AND_FORGET) {
-                return 0.0;
-            }
-            CompletableFuture<Double> future = new CompletableFuture<>();
-            player.getScheduler().run(plugin, task -> {
-                try {
-                    future.complete(player.getHealth());
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            }, null);
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get health for player " + player.getName(), e);
-                return 0.0;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to get health for player " + player.getName(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting health for player " + player.getName(), e);
-                return 0.0;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return player.getHealth();
+        CompletableFuture<Double> f = new CompletableFuture<>();
+        _e(plugin, player, t -> f.complete(player.getHealth()));
+        Double r = _b(f, "Failed to get health for player " + player.getName());
+        return r != null ? r : 0.0;
     }
 
     // --- Thread-Safe Entity Operations ---
 
     public static void safeRemove(Plugin plugin, Entity entity) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.remove();
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.remove(), null);
-        }
+        _e(plugin, entity, t -> entity.remove());
     }
 
     public static void safeSetVelocity(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.setVelocity(velocity);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.setVelocity(velocity), null);
-        }
+        _e(plugin, entity, t -> entity.setVelocity(velocity));
     }
 
     public static boolean safeTeleportEntity(Plugin plugin, Entity entity, Location location) {
-        if (Bukkit.isPrimaryThread()) {
-            return entity.teleport(location);
-        } else {
-            if (FIRE_AND_FORGET) {
-                entity.getScheduler().run(plugin, task -> entity.teleport(location), null);
-                return true;
-            }
-            CompletableFuture<Boolean> future = new CompletableFuture<>();
-            entity.getScheduler().run(plugin, task -> {
-                try {
-                    future.complete(entity.teleport(location));
-                } catch (Exception e) {
-                    future.completeExceptionally(e);
-                }
-            }, null);
-            try {
-                return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
-            } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
-                return false;
-            } catch (TimeoutException e) {
-                if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to teleport entity " + entity.getUniqueId(), e);
-                }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to teleport entity " + entity.getUniqueId(), e);
-                return false;
-            }
-        }
+        if (Bukkit.isPrimaryThread()) return entity.teleport(location);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        _e(plugin, entity, t -> f.complete(entity.teleport(location)));
+        Boolean r = _b(f, "Failed to teleport entity " + entity.getUniqueId());
+        return r != null && r;
     }
 
     public static void safeSetFireTicks(Plugin plugin, Entity entity, int ticks) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.setFireTicks(ticks);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.setFireTicks(ticks), null);
-        }
+        _e(plugin, entity, t -> entity.setFireTicks(ticks));
     }
 
     public static void safeSetCustomName(Plugin plugin, Entity entity, String name) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.setCustomName(name);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.setCustomName(name), null);
-        }
+        _e(plugin, entity, t -> entity.setCustomName(name));
     }
 
     public static void safeSetGravity(Plugin plugin, Entity entity, boolean gravity) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.setGravity(gravity);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.setGravity(gravity), null);
-        }
+        _e(plugin, entity, t -> entity.setGravity(gravity));
     }
 
     public static void safeDamage(Plugin plugin, Damageable entity, double amount) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.damage(amount);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.damage(amount), null);
-        }
+        _e(plugin, entity, t -> entity.damage(amount));
     }
 
     public static void safeDamage(Plugin plugin, Damageable entity, double amount, Entity source) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.damage(amount, source);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.damage(amount, source), null);
-        }
+        _e(plugin, entity, t -> entity.damage(amount, source));
     }
 
     public static void safeSetAI(Plugin plugin, LivingEntity entity, boolean ai) {
-        if (Bukkit.isPrimaryThread()) {
-            entity.setAI(ai);
-        } else {
-            entity.getScheduler().run(plugin, task -> entity.setAI(ai), null);
-        }
+        _e(plugin, entity, t -> entity.setAI(ai));
     }
 
     public static void safeSetGameMode(Plugin plugin, Player player, GameMode gameMode) {
-        if (Bukkit.isPrimaryThread()) {
-            player.setGameMode(gameMode);
-        } else {
-            player.getScheduler().run(plugin, task -> player.setGameMode(gameMode), null);
-        }
+        _e(plugin, player, t -> player.setGameMode(gameMode));
     }
 
     public static boolean safeUpdateBlockState(Plugin plugin, BlockState state) {

@@ -100,7 +100,7 @@ public class WorldGetPlayersTransformer implements ClassTransformer {
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetPlayers",
+                        "_gp",
                         "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;",
                         false
                     );

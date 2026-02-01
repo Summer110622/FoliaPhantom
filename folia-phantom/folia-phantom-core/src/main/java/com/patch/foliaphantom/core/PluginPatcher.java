@@ -32,6 +32,9 @@ import com.patch.foliaphantom.core.transformer.impl.WorldGetHighestBlockAtTransf
 import com.patch.foliaphantom.core.transformer.impl.WorldGetPlayersTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldSpawnEntityTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ServerVersionTransformer;
+import com.patch.foliaphantom.core.transformer.impl.PluginEnableTransformer;
+import com.patch.foliaphantom.core.transformer.impl.CommandDispatchTransformer;
+import com.patch.foliaphantom.core.transformer.impl.OfflinePlayerTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -270,6 +273,9 @@ public class PluginPatcher {
             visitorTransformers.add(new EventCallTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EventFireAndForgetTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerVersionTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new PluginEnableTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new CommandDispatchTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new OfflinePlayerTransformer(logger, relocatedPatcherPath));
 
             this.nodeTransformers = new ArrayList<>();
             nodeTransformers.add(new AsyncEventHandlerTransformer(logger, relocatedPatcherPath, asyncEventHandlers));

@@ -80,10 +80,7 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-            if (isJavaPlugin || pluginField != null) {
-                return new GetOnlinePlayersMethodVisitor(mv, access, name, descriptor);
-            }
-            return mv;
+            return new GetOnlinePlayersMethodVisitor(mv, access, name, descriptor);
         }
 
         private class GetOnlinePlayersMethodVisitor extends AdviceAdapter {
@@ -106,40 +103,26 @@ public class ServerGetOnlinePlayersTransformer implements ClassTransformer {
                 if (isServerGetOnlinePlayers) {
                     logger.fine("[FoliaPhantom] Transforming Server#getOnlinePlayers call in " + className);
                     pop(); // Pop the Server instance from the stack
-                    loadPluginInstance(); // Push the plugin instance
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetOnlinePlayers",
-                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/Collection;",
+                        "_o",
+                        "()Ljava/util/Collection;",
                         false
                     );
                     hasTransformed = true;
                 } else if (isBukkitGetOnlinePlayers) {
                     logger.fine("[FoliaPhantom] Transforming Bukkit#getOnlinePlayers call in " + className);
-                    loadPluginInstance(); // Push the plugin instance
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetOnlinePlayers",
-                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/Collection;",
+                        "_o",
+                        "()Ljava/util/Collection;",
                         false
                     );
                     hasTransformed = true;
                 } else {
                     super.visitMethodInsn(opcode, owner, name, desc, itf);
-                }
-            }
-
-            private void loadPluginInstance() {
-                if (isJavaPlugin) {
-                    visitVarInsn(ALOAD, 0); // this
-                } else if (pluginField != null) {
-                    visitVarInsn(ALOAD, 0); // this
-                    visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
-                } else {
-                    // This should not be reached due to the check in visitMethod.
-                    throw new IllegalStateException("Cannot transform getOnlinePlayers call in " + className + ": No plugin instance found.");
                 }
             }
         }

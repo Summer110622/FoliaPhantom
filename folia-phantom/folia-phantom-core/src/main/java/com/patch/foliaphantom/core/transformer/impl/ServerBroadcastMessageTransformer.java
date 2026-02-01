@@ -111,7 +111,7 @@ public class ServerBroadcastMessageTransformer implements ClassTransformer {
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeBroadcastMessage",
+                        "_bm",
                         // The descriptor needs the plugin instance as the first argument.
                         "(Lorg/bukkit/plugin/Plugin;Ljava/lang/String;)V",
                         false

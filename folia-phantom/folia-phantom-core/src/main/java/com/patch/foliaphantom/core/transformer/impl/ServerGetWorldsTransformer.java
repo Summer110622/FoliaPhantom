@@ -76,11 +76,7 @@ public class ServerGetWorldsTransformer implements ClassTransformer {
         @Override
         public MethodVisitor visitMethod(int access, String name, String descriptor, String signature, String[] exceptions) {
             MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-            // Only transform methods if we have a plugin context (either 'this' or a field).
-            if (isJavaPlugin || pluginField != null) {
-                return new GetWorldsMethodVisitor(mv, access, name, descriptor);
-            }
-            return mv;
+            return new GetWorldsMethodVisitor(mv, access, name, descriptor);
         }
 
         private class GetWorldsMethodVisitor extends AdviceAdapter {
@@ -102,32 +98,17 @@ public class ServerGetWorldsTransformer implements ClassTransformer {
                         pop(); // Pop the Server instance
                     }
 
-                    // Push the Plugin instance onto the stack.
-                    loadPluginInstance();
-
                     // Call the static FoliaPatcher method.
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetWorlds",
-                        "(Lorg/bukkit/plugin/Plugin;)Ljava/util/List;",
+                        "_w",
+                        "()Ljava/util/List;",
                         false
                     );
                     ServerGetWorldsTransformer.this.hasTransformed = true;
                 } else {
                     super.visitMethodInsn(opcode, owner, name, desc, itf);
-                }
-            }
-
-            private void loadPluginInstance() {
-                if (isJavaPlugin) {
-                    visitVarInsn(ALOAD, 0); // this
-                } else if (pluginField != null) {
-                    visitVarInsn(ALOAD, 0); // this
-                    visitFieldInsn(GETFIELD, className, pluginField, pluginFieldType);
-                } else {
-                    // This should not be reached due to the check in visitMethod.
-                    throw new IllegalStateException("Cannot transform getWorlds call in " + className + ": No plugin instance found.");
                 }
             }
         }

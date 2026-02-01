@@ -106,6 +106,72 @@ public final class FoliaPatcher {
     private static final AtomicInteger taskIdCounter = new AtomicInteger(1000000);
     private static final Map<Integer, ScheduledTask> runningTasks = new ConcurrentHashMap<>();
 
+    public static volatile java.util.Collection<? extends Player> _cp = java.util.Collections.emptyList();
+    public static volatile java.util.List<World> _cw = java.util.Collections.emptyList();
+    public static volatile boolean _ii = false;
+
+    public static void _i(Plugin p) {
+        if (_ii) return;
+        _ii = true;
+        Bukkit.getGlobalRegionScheduler().runAtFixedRate(p, t -> {
+            _cp = new java.util.ArrayList<>(Bukkit.getOnlinePlayers());
+            _cw = new java.util.ArrayList<>(Bukkit.getWorlds());
+        }, 1L, 1L);
+    }
+
+    public static java.util.Collection<? extends Player> _o() {
+        return _cp;
+    }
+
+    public static java.util.List<World> _w() {
+        return _cw;
+    }
+
+    public static <T> T _b(Plugin p, java.util.concurrent.Callable<T> c) {
+        if (Bukkit.isPrimaryThread()) try { return c.call(); } catch (Exception e) { throw new RuntimeException(e); }
+        CompletableFuture<T> f = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(p, t -> {
+            try { f.complete(c.call()); } catch (Exception e) { f.completeExceptionally(e); }
+        });
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { return null; }
+    }
+
+    public static void _g(Plugin p, Runnable r) {
+        if (Bukkit.isPrimaryThread()) r.run();
+        else Bukkit.getGlobalRegionScheduler().run(p, t -> r.run());
+    }
+
+    public static void _r(Plugin p, Location l, Runnable r) {
+        if (Bukkit.isPrimaryThread()) r.run();
+        else Bukkit.getRegionScheduler().run(p, l, t -> r.run());
+    }
+
+    public static void _e(Plugin p, Entity e, Runnable r) {
+        if (Bukkit.isPrimaryThread()) r.run();
+        else e.getScheduler().run(p, t -> r.run(), null);
+    }
+
+    public static boolean _b_dc(Plugin p, org.bukkit.command.CommandSender s, String c) {
+        Boolean r = _b(p, () -> Bukkit.dispatchCommand(s, c));
+        return r != null && r;
+    }
+
+    public static org.bukkit.OfflinePlayer _b_gop(Plugin p, String n) {
+        return _b(p, () -> Bukkit.getOfflinePlayer(n));
+    }
+
+    public static org.bukkit.OfflinePlayer _b_gop(Plugin p, java.util.UUID u) {
+        return _b(p, () -> Bukkit.getOfflinePlayer(u));
+    }
+
+    public static java.util.List<Player> _gp(Plugin p, World w) {
+        return safeGetPlayers(p, w);
+    }
+
+    public static void _bm(Plugin p, String m) {
+        safeBroadcastMessage(p, m);
+    }
+
     /**
      * Cached server version string to reduce repeated method calls.
      */

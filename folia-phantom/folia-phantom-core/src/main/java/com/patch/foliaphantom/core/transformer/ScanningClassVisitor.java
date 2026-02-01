@@ -39,6 +39,7 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/World",
         "org/bukkit/Bukkit",
         "org/bukkit/plugin/Plugin",
+        "org/bukkit/plugin/java/JavaPlugin",
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
@@ -80,9 +81,6 @@ public class ScanningClassVisitor extends ClassVisitor {
             if (INTERESTING_OWNERS.contains(owner)) {
                  // At this point, the owner is interesting. Check the method name for specifics.
                 switch (owner) {
-                    case "org/bukkit/Server":
-                        if ("getOnlinePlayers".equals(name)) needsPatching = true;
-                        break;
                     case "org/bukkit/plugin/PluginManager":
                         if ("callEvent".equals(name)) needsPatching = true;
                         break;
@@ -103,7 +101,8 @@ public class ScanningClassVisitor extends ClassVisitor {
                         }
                         break;
                     case "org/bukkit/Bukkit":
-                        if ("createWorld".equals(name)) needsPatching = true;
+                    case "org/bukkit/Server":
+                        if ("getOnlinePlayers".equals(name) || "createWorld".equals(name) || "dispatchCommand".equals(name) || "getOfflinePlayer".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/plugin/Plugin":
                         if ("getDefaultWorldGenerator".equals(name)) needsPatching = true;

@@ -108,14 +108,36 @@ public final class FoliaPatcher {
 
     public static volatile java.util.Collection<? extends Player> _cp = java.util.Collections.emptyList();
     public static volatile java.util.List<World> _cw = java.util.Collections.emptyList();
+    public static volatile java.util.Map<String, Player> _cps = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<java.util.UUID, Player> _cpu = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<String, World> _cwn = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<java.util.UUID, World> _cwu = java.util.Collections.emptyMap();
     public static volatile boolean _ii = false;
 
     public static void _i(Plugin p) {
         if (_ii) return;
         _ii = true;
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(p, t -> {
-            _cp = new java.util.ArrayList<>(Bukkit.getOnlinePlayers());
-            _cw = new java.util.ArrayList<>(Bukkit.getWorlds());
+            java.util.Collection<? extends Player> op = Bukkit.getOnlinePlayers();
+            java.util.List<World> ws = Bukkit.getWorlds();
+            java.util.Map<String, Player> ps = new java.util.HashMap<>(op.size());
+            java.util.Map<java.util.UUID, Player> pu = new java.util.HashMap<>(op.size());
+            for (Player pl : op) {
+                ps.put(pl.getName(), pl);
+                pu.put(pl.getUniqueId(), pl);
+            }
+            java.util.Map<String, World> wn = new java.util.HashMap<>(ws.size());
+            java.util.Map<java.util.UUID, World> wu = new java.util.HashMap<>(ws.size());
+            for (World w : ws) {
+                wn.put(w.getName(), w);
+                wu.put(w.getUID(), w);
+            }
+            _cp = new java.util.ArrayList<>(op);
+            _cw = new java.util.ArrayList<>(ws);
+            _cps = ps;
+            _cpu = pu;
+            _cwn = wn;
+            _cwu = wu;
         }, 1L, 1L);
     }
 
@@ -125,6 +147,22 @@ public final class FoliaPatcher {
 
     public static java.util.List<World> _w() {
         return _cw;
+    }
+
+    public static Player _ps(String n) {
+        return _cps.get(n);
+    }
+
+    public static Player _pu(java.util.UUID u) {
+        return _cpu.get(u);
+    }
+
+    public static World _ws(String n) {
+        return _cwn.get(n);
+    }
+
+    public static World _wu(java.util.UUID u) {
+        return _cwu.get(u);
     }
 
     public static <T> T _b(Plugin p, java.util.concurrent.Callable<T> c) {

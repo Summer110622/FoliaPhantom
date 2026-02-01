@@ -167,6 +167,45 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testmirroring")) {
+            sender.sendMessage("Testing High-Performance Mirroring from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    // Test Player mirroring
+                    Player p = Bukkit.getPlayer(sender.getName());
+                    if (p != null) {
+                        sender.sendMessage("Player lookup (String) successful: " + p.getName());
+                    } else {
+                        sender.sendMessage("Player lookup (String) failed (might be 1-tick delay).");
+                    }
+
+                    if (sender instanceof Player) {
+                        Player p2 = Bukkit.getPlayer(((Player) sender).getUniqueId());
+                        if (p2 != null) {
+                            sender.sendMessage("Player lookup (UUID) successful: " + p2.getName());
+                        }
+                    }
+
+                    // Test World mirroring
+                    org.bukkit.World w = Bukkit.getWorlds().get(0);
+                    org.bukkit.World w1 = Bukkit.getWorld(w.getName());
+                    org.bukkit.World w2 = Bukkit.getWorld(w.getUID());
+
+                    if (w1 != null && w1.getName().equals(w.getName())) {
+                        sender.sendMessage("World lookup (Name) successful: " + w1.getName());
+                    }
+                    if (w2 != null && w2.getUID().equals(w.getUID())) {
+                        sender.sendMessage("World lookup (UUID) successful: " + w2.getName());
+                    }
+
+                    sender.sendMessage("Mirroring tests completed.");
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, "Error in testmirroring command", e);
+                }
+            });
+            return true;
+        }
+
         return false;
     }
 }

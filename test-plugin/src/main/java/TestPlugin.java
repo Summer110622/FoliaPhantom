@@ -134,6 +134,35 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testcommand")) {
+            sender.sendMessage("Testing dispatchCommand and getOfflinePlayer from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    // 1. Bukkit.dispatchCommand
+                    boolean result = Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "help");
+                    sender.sendMessage("Bukkit.dispatchCommand result: " + result);
+
+                    // 2. Server.dispatchCommand
+                    boolean result2 = Bukkit.getServer().dispatchCommand(Bukkit.getConsoleSender(), "help");
+                    sender.sendMessage("Server.dispatchCommand result: " + result2);
+
+                    // 3. Bukkit.getOfflinePlayer(String)
+                    org.bukkit.OfflinePlayer op1 = Bukkit.getOfflinePlayer("Marv");
+                    sender.sendMessage("Bukkit.getOfflinePlayer(String) result: " + op1.getName());
+
+                    // 4. Bukkit.getOfflinePlayer(UUID)
+                    java.util.UUID uuid = java.util.UUID.randomUUID();
+                    org.bukkit.OfflinePlayer op2 = Bukkit.getOfflinePlayer(uuid);
+                    sender.sendMessage("Bukkit.getOfflinePlayer(UUID) result: " + op2.getUniqueId());
+
+                    sender.sendMessage("Command dispatch and OfflinePlayer test successful!");
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, "Error in testcommand command", e);
+                }
+            });
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("testnew")) {
             if (sender instanceof Player) {
                 Player player = (Player) sender;

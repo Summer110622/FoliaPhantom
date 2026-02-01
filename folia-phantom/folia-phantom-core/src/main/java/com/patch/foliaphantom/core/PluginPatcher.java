@@ -12,6 +12,7 @@ package com.patch.foliaphantom.core;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
+import com.patch.foliaphantom.core.transformer.impl.CommandDispatchTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
@@ -19,6 +20,7 @@ import com.patch.foliaphantom.core.transformer.impl.PlayerHealthTransformer;
 import com.patch.foliaphantom.core.transformer.impl.ThreadSafetyTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PlayerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.InventoryTransformer;
+import com.patch.foliaphantom.core.transformer.impl.OfflinePlayerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.TeleportTransformer;
 import com.patch.foliaphantom.core.transformer.impl.WorldGenClassTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventHandlerTransformer;
@@ -251,6 +253,8 @@ public class PluginPatcher {
             // Initialize transformers with the relocated path
             this.visitorTransformers = new ArrayList<>();
             visitorTransformers.add(new ServerBroadcastMessageTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new CommandDispatchTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new OfflinePlayerTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerGetOnlinePlayersTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ServerGetWorldsTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGetPlayersTransformer(logger, relocatedPatcherPath));

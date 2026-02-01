@@ -17,12 +17,14 @@ import org.bukkit.Effect;
 import org.bukkit.GameMode;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
+import org.bukkit.OfflinePlayer;
 import org.bukkit.Sound;
 import org.bukkit.TreeType;
 import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.command.CommandSender;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -40,6 +42,7 @@ import org.bukkit.scheduler.BukkitTask;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Set;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
@@ -1860,6 +1863,85 @@ public final class FoliaPatcher {
      */
     public static void executeAsync(Plugin plugin, Runnable task) {
         Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
+    }
+
+    /**
+     * Safely dispatches a command.
+     */
+    public static boolean safeDispatchCommand(Plugin plugin, CommandSender sender, String commandLine) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.dispatchCommand(sender, commandLine);
+        }
+        if (FIRE_AND_FORGET) {
+            Bukkit.getGlobalRegionScheduler().run(plugin, task -> Bukkit.dispatchCommand(sender, commandLine));
+            return true;
+        }
+        CompletableFuture<Boolean> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.dispatchCommand(sender, commandLine));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to dispatch command: " + commandLine, e);
+            return false;
+        }
+    }
+
+    /**
+     * Safely gets an offline player by name.
+     */
+    public static OfflinePlayer safeGetOfflinePlayer(Plugin plugin, String name) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getOfflinePlayer(name);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<OfflinePlayer> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getOfflinePlayer(name));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS * 10, TimeUnit.MILLISECONDS); // Offline player lookup can be slow
+        } catch (Exception e) {
+            handleException("Failed to get offline player: " + name, e);
+            return null;
+        }
+    }
+
+    /**
+     * Safely gets an offline player by UUID.
+     */
+    public static OfflinePlayer safeGetOfflinePlayer(Plugin plugin, UUID id) {
+        if (Bukkit.isPrimaryThread()) {
+            return Bukkit.getOfflinePlayer(id);
+        }
+        if (FIRE_AND_FORGET) {
+            return null;
+        }
+        CompletableFuture<OfflinePlayer> future = new CompletableFuture<>();
+        Bukkit.getGlobalRegionScheduler().run(plugin, task -> {
+            try {
+                future.complete(Bukkit.getOfflinePlayer(id));
+            } catch (Exception e) {
+                future.completeExceptionally(e);
+            }
+        });
+        try {
+            return future.get(API_TIMEOUT_MS * 10, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Failed to get offline player: " + id, e);
+            return null;
+        }
     }
 
 

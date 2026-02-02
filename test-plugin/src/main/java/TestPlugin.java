@@ -167,6 +167,51 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testmirroring")) {
+            sender.sendMessage("Testing HP-PWM lookups from an async thread...");
+            Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                try {
+                    // Test getPlayer(String)
+                    Player p = Bukkit.getPlayer(sender.getName());
+                    if (p != null) {
+                        sender.sendMessage("getPlayer(String) success: " + p.getName());
+                    }
+
+                    // Test getPlayer(UUID)
+                    if (sender instanceof Player) {
+                        Player p2 = Bukkit.getPlayer(((Player) sender).getUniqueId());
+                        if (p2 != null) {
+                            sender.sendMessage("getPlayer(UUID) success: " + p2.getName());
+                        }
+                    }
+
+                    // Test getWorlds()
+                    int worlds = Bukkit.getWorlds().size();
+                    sender.sendMessage("getWorlds() success: " + worlds + " worlds found.");
+
+                    // Test getWorld(String)
+                    if (!Bukkit.getWorlds().isEmpty()) {
+                        String worldName = Bukkit.getWorlds().get(0).getName();
+                        org.bukkit.World w = Bukkit.getWorld(worldName);
+                        if (w != null) {
+                            sender.sendMessage("getWorld(String) success: " + w.getName());
+                        }
+                    }
+
+                    // Test World#getPlayers()
+                    if (sender instanceof Player) {
+                        int playersInWorld = ((Player) sender).getWorld().getPlayers().size();
+                        sender.sendMessage("World#getPlayers() success: " + playersInWorld + " players in your world.");
+                    }
+
+                    sender.sendMessage("HP-PWM lookups test completed!");
+                } catch (Exception e) {
+                    getLogger().log(Level.SEVERE, "Error in testmirroring command", e);
+                }
+            });
+            return true;
+        }
+
         return false;
     }
 }

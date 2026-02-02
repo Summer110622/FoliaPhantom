@@ -64,11 +64,10 @@
                                 <mkdir dir="${project.basedir}/../argo"/>
                                 <copy todir="${project.basedir}/../argo" flatten="true">
                                     <fileset dir="${project.basedir}">
-                                        <include name="**/folia-phantom-cli/target/*.jar"/>
-                                        <include name="**/folia-phantom-gui/target/*.jar"/>
-                                        <include name="**/folia-phantom-plugin/target/*.jar"/>
+                                        <include name="folia-phantom-cli/target/*.jar"/>
+                                        <include name="folia-phantom-gui/target/*.jar"/>
+                                        <include name="folia-phantom-plugin/target/*.jar"/>
                                         <exclude name="**/original-*.jar"/>
-                                        <exclude name="**/target/classes/**"/>
                                     </fileset>
                                 </copy>
                             </target>

@@ -108,14 +108,39 @@ public final class FoliaPatcher {
 
     public static volatile java.util.Collection<? extends Player> _cp = java.util.Collections.emptyList();
     public static volatile java.util.List<World> _cw = java.util.Collections.emptyList();
+    public static volatile java.util.Map<String, Player> _cps = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<java.util.UUID, Player> _cpu = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<String, World> _cwn = java.util.Collections.emptyMap();
+    public static volatile java.util.Map<java.util.UUID, World> _cwu = java.util.Collections.emptyMap();
     public static volatile boolean _ii = false;
 
     public static void _i(Plugin p) {
         if (_ii) return;
         _ii = true;
         Bukkit.getGlobalRegionScheduler().runAtFixedRate(p, t -> {
-            _cp = new java.util.ArrayList<>(Bukkit.getOnlinePlayers());
-            _cw = new java.util.ArrayList<>(Bukkit.getWorlds());
+            java.util.Collection<? extends Player> players = Bukkit.getOnlinePlayers();
+            java.util.List<World> worlds = Bukkit.getWorlds();
+
+            _cp = new java.util.ArrayList<>(players);
+            _cw = new java.util.ArrayList<>(worlds);
+
+            java.util.Map<String, Player> nps = new java.util.HashMap<>(players.size());
+            java.util.Map<java.util.UUID, Player> ups = new java.util.HashMap<>(players.size());
+            for (Player player : players) {
+                nps.put(player.getName(), player);
+                ups.put(player.getUniqueId(), player);
+            }
+            _cps = nps;
+            _cpu = ups;
+
+            java.util.Map<String, World> nws = new java.util.HashMap<>(worlds.size());
+            java.util.Map<java.util.UUID, World> uws = new java.util.HashMap<>(worlds.size());
+            for (World world : worlds) {
+                nws.put(world.getName(), world);
+                uws.put(world.getUID(), world);
+            }
+            _cwn = nws;
+            _cwu = uws;
         }, 1L, 1L);
     }
 
@@ -125,6 +150,32 @@ public final class FoliaPatcher {
 
     public static java.util.List<World> _w() {
         return _cw;
+    }
+
+    public static Player _ps(String n) {
+        return _cps.get(n);
+    }
+
+    public static Player _pu(java.util.UUID u) {
+        return _cpu.get(u);
+    }
+
+    public static World _ws(String n) {
+        return _cwn.get(n);
+    }
+
+    public static World _wu(java.util.UUID u) {
+        return _cwu.get(u);
+    }
+
+    public static java.util.List<Player> _wp(World w) {
+        java.util.List<Player> r = new java.util.ArrayList<>();
+        for (Player p : _cp) {
+            if (p.getWorld().equals(w)) {
+                r.add(p);
+            }
+        }
+        return r;
     }
 
     public static <T> T _b(Plugin p, java.util.concurrent.Callable<T> c) {

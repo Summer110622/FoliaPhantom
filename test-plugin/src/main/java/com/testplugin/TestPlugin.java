@@ -10,6 +10,10 @@ public class TestPlugin extends JavaPlugin {
         getLogger().info("Enabled");
         Bukkit.getOnlinePlayers();
         Bukkit.getWorlds();
+        Bukkit.getPlayer("test");
+        Bukkit.getPlayer(UUID.randomUUID());
+        Bukkit.getWorld("world");
+        Bukkit.getWorld(UUID.randomUUID());
         Bukkit.dispatchCommand(Bukkit.getConsoleSender(), "test");
         Bukkit.getOfflinePlayer("test");
         Bukkit.getOfflinePlayer(UUID.randomUUID());

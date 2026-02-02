@@ -1,6 +1,7 @@
 package com.patch.foliaphantom.plugin;
 
 import com.patch.foliaphantom.core.PluginPatcher;
+import com.patch.foliaphantom.core.patcher.FoliaPatcher;
 import org.bukkit.ChatColor;
 import org.bukkit.command.Command;
 import org.bukkit.command.CommandExecutor;
@@ -45,6 +46,9 @@ public class PatchCommand implements CommandExecutor, TabCompleter {
             case "reload":
                 reloadConfig(sender);
                 break;
+            case "mirror":
+                showMirrorStatus(sender);
+                break;
             default:
                 // Treat as plugin name to patch
                 patchPlugin(sender, args[0]);
@@ -60,7 +64,19 @@ public class PatchCommand implements CommandExecutor, TabCompleter {
                 ChatColor.YELLOW + "/foliapatch <plugin-name>" + ChatColor.WHITE + " - Patch a specific plugin");
         sender.sendMessage(ChatColor.YELLOW + "/foliapatch list" + ChatColor.WHITE + " - List all patchable plugins");
         sender.sendMessage(ChatColor.YELLOW + "/foliapatch status" + ChatColor.WHITE + " - Show patching statistics");
+        sender.sendMessage(ChatColor.YELLOW + "/foliapatch mirror" + ChatColor.WHITE + " - Show mirroring statistics");
         sender.sendMessage(ChatColor.YELLOW + "/foliapatch reload" + ChatColor.WHITE + " - Reload configuration");
+    }
+
+    private void showMirrorStatus(CommandSender sender) {
+        sender.sendMessage(ChatColor.GOLD + "=== FoliaPhantom Mirror Status ===");
+        sender.sendMessage(ChatColor.WHITE + "Players mirrored: " + ChatColor.AQUA + FoliaPatcher._cp.size());
+        sender.sendMessage(ChatColor.WHITE + "Worlds mirrored: " + ChatColor.AQUA + FoliaPatcher._cw.size());
+        sender.sendMessage(ChatColor.WHITE + "Player Cache (Name): " + ChatColor.AQUA + FoliaPatcher._cps.size());
+        sender.sendMessage(ChatColor.WHITE + "Player Cache (UUID): " + ChatColor.AQUA + FoliaPatcher._cpu.size());
+        sender.sendMessage(ChatColor.WHITE + "World Cache (Name): " + ChatColor.AQUA + FoliaPatcher._cwn.size());
+        sender.sendMessage(ChatColor.WHITE + "World Cache (UUID): " + ChatColor.AQUA + FoliaPatcher._cwu.size());
+        sender.sendMessage(ChatColor.GRAY + "Mirroring task is active and updates every tick.");
     }
 
     private void listPlugins(CommandSender sender) {
@@ -207,7 +223,7 @@ public class PatchCommand implements CommandExecutor, TabCompleter {
         }
 
         if (args.length == 1) {
-            List<String> completions = new ArrayList<>(Arrays.asList("list", "status", "reload"));
+            List<String> completions = new ArrayList<>(Arrays.asList("list", "status", "mirror", "reload"));
 
             // Add plugin names
             File serverRoot = plugin.getDataFolder().getParentFile().getParentFile();

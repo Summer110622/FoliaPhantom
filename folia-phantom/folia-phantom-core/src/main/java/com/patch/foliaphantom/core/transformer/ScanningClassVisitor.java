@@ -122,6 +122,12 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
+                            case "addPotionEffect":
+                            case "removePotionEffect":
+                            case "getNearbyEntities":
                                 needsPatching = true;
                                 break;
                         }

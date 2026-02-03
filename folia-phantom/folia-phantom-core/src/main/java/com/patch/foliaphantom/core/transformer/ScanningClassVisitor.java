@@ -43,7 +43,8 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
-        "org/bukkit/block/BlockState"
+        "org/bukkit/block/BlockState",
+        "org/bukkit/Chunk"
     );
 
     public ScanningClassVisitor(String relocatedPatcherPath) {
@@ -96,6 +97,8 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "getPlayers":
                             case "getNearbyEntities":
                             case "getHighestBlockAt":
+                            case "rayTraceBlocks":
+                            case "rayTraceEntities":
                                 needsPatching = true;
                                 break;
                         }
@@ -122,12 +125,23 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "addScoreboardTag":
+                            case "removeScoreboardTag":
+                            case "getNearbyEntities":
+                            case "addPotionEffect":
+                            case "removePotionEffect":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
                                 needsPatching = true;
                                 break;
                         }
                         break;
                     case "org/bukkit/block/BlockState":
                         if ("update".equals(name)) needsPatching = true;
+                        break;
+                    case "org/bukkit/Chunk":
+                        if ("getEntities".equals(name) || "load".equals(name) || "unload".equals(name)) needsPatching = true;
                         break;
                     // For other owners in the set, their presence alone is enough.
                     default:

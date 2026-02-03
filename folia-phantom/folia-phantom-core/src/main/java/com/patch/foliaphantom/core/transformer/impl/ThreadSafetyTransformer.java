@@ -189,6 +189,24 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         case "getHealth":
                             if ("()D".equals(desc)) return transform(0, "safeGetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D");
                             break;
+                        case "addPassenger":
+                            if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "_addPassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                            break;
+                        case "removePassenger":
+                            if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "_removePassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                            break;
+                        case "eject":
+                            if ("()Z".equals(desc)) return transform(0, "_eject", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)Z");
+                            break;
+                        case "getNearbyEntities":
+                            if ("(DDD)Ljava/util/List;".equals(desc)) return transform(3, "_getNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;DDD)Ljava/util/List;");
+                            break;
+                        case "addPotionEffect":
+                            if ("(Lorg/bukkit/potion/PotionEffect;)Z".equals(desc)) return transform(1, "_addPotionEffect", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Lorg/bukkit/potion/PotionEffect;)Z");
+                            break;
+                        case "removePotionEffect":
+                            if ("(Lorg/bukkit/potion/PotionEffectType;)V".equals(desc)) return transform(1, "_removePotionEffect", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Lorg/bukkit/potion/PotionEffectType;)V");
+                            break;
                     }
                     break;
                 case "org/bukkit/block/BlockState":

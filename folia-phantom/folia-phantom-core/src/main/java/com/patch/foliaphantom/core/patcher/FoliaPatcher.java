@@ -32,6 +32,8 @@ import org.bukkit.event.block.BlockEvent;
 import org.bukkit.event.entity.EntityEvent;
 import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
 import org.bukkit.scheduler.BukkitScheduler;
@@ -1841,6 +1843,36 @@ public final class FoliaPatcher {
         } else {
             entity.getScheduler().run(plugin, task -> entity.setVelocity(velocity), null);
         }
+    }
+
+    public static boolean _addPassenger(Plugin p, Entity e, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return e.addPassenger(ps);
+        return _b(p, () -> e.addPassenger(ps));
+    }
+
+    public static boolean _removePassenger(Plugin p, Entity e, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return e.removePassenger(ps);
+        return _b(p, () -> e.removePassenger(ps));
+    }
+
+    public static boolean _eject(Plugin p, Entity e) {
+        if (Bukkit.isPrimaryThread()) return e.eject();
+        return _b(p, () -> e.eject());
+    }
+
+    public static java.util.List<Entity> _getNearbyEntities(Plugin p, Entity e, double x, double y, double z) {
+        if (Bukkit.isPrimaryThread()) return e.getNearbyEntities(x, y, z);
+        return _b(p, () -> e.getNearbyEntities(x, y, z));
+    }
+
+    public static boolean _addPotionEffect(Plugin p, LivingEntity e, PotionEffect ef) {
+        if (Bukkit.isPrimaryThread()) return e.addPotionEffect(ef);
+        return _b(p, () -> e.addPotionEffect(ef));
+    }
+
+    public static void _removePotionEffect(Plugin p, LivingEntity e, PotionEffectType t) {
+        if (Bukkit.isPrimaryThread()) e.removePotionEffect(t);
+        else _g(p, () -> e.removePotionEffect(t));
     }
 
     public static boolean safeTeleportEntity(Plugin plugin, Entity entity, Location location) {

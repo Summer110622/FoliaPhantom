@@ -37,6 +37,7 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/plugin/PluginManager",
         "org/bukkit/block/Block",
         "org/bukkit/World",
+        "org/bukkit/Chunk",
         "org/bukkit/Bukkit",
         "org/bukkit/plugin/Plugin",
         "org/bukkit/plugin/java/JavaPlugin",
@@ -96,9 +97,14 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "getPlayers":
                             case "getNearbyEntities":
                             case "getHighestBlockAt":
+                            case "rayTraceBlocks":
+                            case "rayTraceEntities":
                                 needsPatching = true;
                                 break;
                         }
+                        break;
+                    case "org/bukkit/Chunk":
+                        if ("getEntities".equals(name) || "load".equals(name) || "unload".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/Bukkit":
                     case "org/bukkit/Server":
@@ -122,6 +128,11 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
+                            case "addPotionEffect":
+                            case "removePotionEffect":
                                 needsPatching = true;
                                 break;
                         }

@@ -190,8 +190,11 @@ public final class FoliaPatcher {
     }
 
     public static boolean _b_dc(Plugin p, org.bukkit.command.CommandSender s, String c) {
-        Boolean r = _b(p, () -> Bukkit.dispatchCommand(s, c));
-        return r != null && r;
+        if (Bukkit.isPrimaryThread()) return Bukkit.dispatchCommand(s, c);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        if (s instanceof Entity) ((Entity) s).getScheduler().run(p, t -> f.complete(Bukkit.dispatchCommand(s, c)), null);
+        else Bukkit.getGlobalRegionScheduler().run(p, t -> f.complete(Bukkit.dispatchCommand(s, c)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception e) { return false; }
     }
 
     public static org.bukkit.OfflinePlayer _b_gop(Plugin p, String n) {
@@ -1966,6 +1969,90 @@ public final class FoliaPatcher {
         Bukkit.getAsyncScheduler().runNow(plugin, scheduledTask -> task.run());
     }
 
+    public static boolean _ape(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffect ef) {
+        if (Bukkit.isPrimaryThread()) return e.addPotionEffect(ef);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> f.complete(e.addPotionEffect(ef)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static void _rpe(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffectType t) {
+        if (Bukkit.isPrimaryThread()) e.removePotionEffect(t);
+        else e.getScheduler().run(p, tk -> e.removePotionEffect(t), null);
+    }
+
+    public static boolean _ap(Plugin p, Entity e, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return e.addPassenger(ps);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> f.complete(e.addPassenger(ps)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _rp(Plugin p, Entity e, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return e.removePassenger(ps);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> f.complete(e.removePassenger(ps)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _ej(Plugin p, Entity e) {
+        if (Bukkit.isPrimaryThread()) return e.eject();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> f.complete(e.eject()), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static Entity[] _ce(Plugin p, org.bukkit.Chunk c) {
+        if (Bukkit.isPrimaryThread()) return c.getEntities();
+        CompletableFuture<Entity[]> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.getEntities()));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return new Entity[0]; }
+    }
+
+    public static boolean _cl(Plugin p, org.bukkit.Chunk c, boolean g) {
+        if (Bukkit.isPrimaryThread()) return c.load(g);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.load(g)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _cu(Plugin p, org.bukkit.Chunk c) {
+        if (Bukkit.isPrimaryThread()) return c.unload();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.unload()));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static org.bukkit.util.RayTraceResult _rtb(Plugin p, World w, Location s, org.bukkit.util.Vector d, double m, org.bukkit.FluidCollisionMode fcm, boolean i) {
+        if (Bukkit.isPrimaryThread()) return w.rayTraceBlocks(s, d, m, fcm, i);
+        CompletableFuture<org.bukkit.util.RayTraceResult> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, s, t -> f.complete(w.rayTraceBlocks(s, d, m, fcm, i)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return null; }
+    }
+
+    public static org.bukkit.util.RayTraceResult _rte(Plugin p, World w, Location s, org.bukkit.util.Vector d, double m, double r, java.util.function.Predicate<Entity> fl) {
+        if (Bukkit.isPrimaryThread()) return w.rayTraceEntities(s, d, m, r, fl);
+        CompletableFuture<org.bukkit.util.RayTraceResult> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, s, t -> f.complete(w.rayTraceEntities(s, d, m, r, fl)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return null; }
+    }
+
+    // Short name aliases for existing methods
+    public static <T extends Entity> T _ss(Plugin p, World w, Location l, Class<T> c) { return safeSpawnEntity(p, w, l, c); }
+    public static org.bukkit.entity.Item _di(Plugin p, World w, Location l, ItemStack i) { return safeDropItem(p, w, l, i); }
+    public static org.bukkit.entity.Item _dn(Plugin p, World w, Location l, ItemStack i) { return safeDropItemNaturally(p, w, l, i); }
+    public static boolean _ex(Plugin p, World w, Location l, float pw, boolean sf, boolean bb) { return safeCreateExplosion(p, w, l, pw, sf, bb); }
+    public static void _pe(Plugin p, World w, Location l, Effect ef, Object d) { safePlayEffect(p, w, l, ef, d); }
+    public static void _sd(Plugin p, World w, Location l, Sound s, float v, float pi) { safePlaySound(p, w, l, s, v, pi); }
+    public static org.bukkit.entity.LightningStrike _sl(Plugin p, World w, Location l) { return safeStrikeLightning(p, w, l); }
+    public static boolean _gt(Plugin p, World w, Location l, TreeType t) { return safeGenerateTree(p, w, l, t); }
+    public static void _st(Plugin p, Block b, org.bukkit.Material m) { safeSetBlockType(p, b, m); }
+    public static void _st(Plugin p, Block b, org.bukkit.Material m, boolean ph) { safeSetBlockTypeWithPhysics(p, b, m, ph); }
+    public static void _bd(Plugin p, Block b, BlockData d) { safeSetBlockData(p, b, d); }
+    public static void _bd(Plugin p, Block b, BlockData d, boolean ph) { safeSetBlockDataWithPhysics(p, b, d, ph); }
+    public static boolean _up(Plugin p, BlockState s) { return safeUpdateBlockState(p, s); }
+    public static boolean _up(Plugin p, BlockState s, boolean f) { return safeUpdateBlockState(p, s, f); }
+    public static boolean _up(Plugin p, BlockState s, boolean f, boolean ph) { return safeUpdateBlockState(p, s, f, ph); }
 
     // --- Legacy / Int-returning Method Mappings ---
 

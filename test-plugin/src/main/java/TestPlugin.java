@@ -167,6 +167,45 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testmore")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing more transformations from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // 1. Potion Effects
+                        player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 100, 1));
+                        player.removePotionEffect(org.bukkit.potion.PotionEffectType.SPEED);
+                        player.sendMessage("Potion effect test successful");
+
+                        // 2. Passengers
+                        org.bukkit.entity.Entity creeper = player.getWorld().spawn(player.getLocation(), org.bukkit.entity.Creeper.class);
+                        player.addPassenger(creeper);
+                        player.removePassenger(creeper);
+                        player.eject();
+                        creeper.remove();
+                        player.sendMessage("Passenger test successful");
+
+                        // 3. Chunk
+                        org.bukkit.Chunk chunk = player.getLocation().getChunk();
+                        chunk.getEntities();
+                        chunk.load(false);
+                        chunk.unload();
+                        player.sendMessage("Chunk test successful");
+
+                        // 4. Raytrace
+                        player.getWorld().rayTraceBlocks(player.getEyeLocation(), player.getEyeLocation().getDirection(), 10.0, org.bukkit.FluidCollisionMode.NEVER, true);
+                        player.sendMessage("Raytrace test successful");
+
+                        sender.sendMessage("All more transformations test successful!");
+                    } catch (Exception e) {
+                        getLogger().log(Level.SEVERE, "Error in testmore command", e);
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

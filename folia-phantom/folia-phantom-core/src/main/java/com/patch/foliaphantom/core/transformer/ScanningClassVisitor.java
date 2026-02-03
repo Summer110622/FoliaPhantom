@@ -43,7 +43,8 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
-        "org/bukkit/block/BlockState"
+        "org/bukkit/block/BlockState",
+        "org/bukkit/Chunk"
     );
 
     public ScanningClassVisitor(String relocatedPatcherPath) {
@@ -78,8 +79,38 @@ public class ScanningClassVisitor extends ClassVisitor {
             }
 
             // Fast path: check owner first.
-            if (INTERESTING_OWNERS.contains(owner)) {
+            boolean isEntity = owner.startsWith("org/bukkit/entity/");
+            if (INTERESTING_OWNERS.contains(owner) || isEntity) {
                  // At this point, the owner is interesting. Check the method name for specifics.
+                if (isEntity) {
+                    switch (name) {
+                        case "remove":
+                        case "setVelocity":
+                        case "teleport":
+                        case "setFireTicks":
+                        case "setCustomName":
+                        case "setGravity":
+                        case "damage":
+                        case "setAI":
+                        case "setGameMode":
+                        case "getHealth":
+                        case "addPassenger":
+                        case "removePassenger":
+                        case "eject":
+                        case "addPotionEffect":
+                        case "removePotionEffect":
+                            needsPatching = true;
+                            return;
+                    }
+                    if (INTERESTING_OWNERS.contains(owner)) {
+                        // If it's one of the base interfaces but not one of the methods above,
+                        // it might still need patching if it's one of the "presence alone" owners.
+                        // But for entities, we only care about specific methods.
+                    } else {
+                        return; // Not a base interface and not a patched method.
+                    }
+                }
+
                 switch (owner) {
                     case "org/bukkit/plugin/PluginManager":
                         if ("callEvent".equals(name)) needsPatching = true;
@@ -107,24 +138,8 @@ public class ScanningClassVisitor extends ClassVisitor {
                     case "org/bukkit/plugin/Plugin":
                         if ("getDefaultWorldGenerator".equals(name)) needsPatching = true;
                         break;
-                    case "org/bukkit/entity/Entity":
-                    case "org/bukkit/entity/LivingEntity":
-                    case "org/bukkit/entity/Damageable":
-                    case "org/bukkit/entity/Player":
-                         switch (name) {
-                            case "remove":
-                            case "setVelocity":
-                            case "teleport":
-                            case "setFireTicks":
-                            case "setCustomName":
-                            case "setGravity":
-                            case "damage":
-                            case "setAI":
-                            case "setGameMode":
-                            case "getHealth":
-                                needsPatching = true;
-                                break;
-                        }
+                    case "org/bukkit/Chunk":
+                        if ("getEntities".equals(name) || "load".equals(name) || "unload".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/block/BlockState":
                         if ("update".equals(name)) needsPatching = true;

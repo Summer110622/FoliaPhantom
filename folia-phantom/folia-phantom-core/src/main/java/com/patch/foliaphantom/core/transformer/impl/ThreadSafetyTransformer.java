@@ -99,6 +99,56 @@ public class ThreadSafetyTransformer implements ClassTransformer {
         }
 
         private boolean tryHandle(String owner, String name, String desc) {
+            if (owner.startsWith("org/bukkit/entity/")) {
+                switch (name) {
+                    case "remove":
+                        if ("()V".equals(desc)) return transform(0, "safeRemove", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)V");
+                        break;
+                    case "setVelocity":
+                        if ("(Lorg/bukkit/util/Vector;)V".equals(desc)) return transform(1, "safeSetVelocity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/util/Vector;)V");
+                        break;
+                    case "teleport":
+                        if ("(Lorg/bukkit/Location;)Z".equals(desc)) return transform(1, "safeTeleportEntity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/Location;)Z");
+                        break;
+                    case "setFireTicks":
+                        if ("(I)V".equals(desc)) return transform(1, "safeSetFireTicks", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;I)V");
+                        break;
+                    case "setCustomName":
+                        if ("(Ljava/lang/String;)V".equals(desc)) return transform(1, "safeSetCustomName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Ljava/lang/String;)V");
+                        break;
+                    case "setGravity":
+                        if ("(Z)V".equals(desc)) return transform(1, "safeSetGravity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Z)V");
+                        break;
+                    case "damage":
+                        if ("(D)V".equals(desc)) return transform(1, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;D)V");
+                        if ("(DLorg/bukkit/entity/Entity;)V".equals(desc)) return transform(2, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;DLorg/bukkit/entity/Entity;)V");
+                        break;
+                    case "setAI":
+                        if ("(Z)V".equals(desc)) return transform(1, "safeSetAI", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Z)V");
+                        break;
+                    case "setGameMode":
+                        if ("(Lorg/bukkit/GameMode;)V".equals(desc)) return transform(1, "safeSetGameMode", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/GameMode;)V");
+                        break;
+                    case "getHealth":
+                        if ("()D".equals(desc)) return transform(0, "safeGetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D");
+                        break;
+                    case "addPassenger":
+                        if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "_addPassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                        break;
+                    case "removePassenger":
+                        if ("(Lorg/bukkit/entity/Entity;)Z".equals(desc)) return transform(1, "_removePassenger", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/entity/Entity;)Z");
+                        break;
+                    case "eject":
+                        if ("()Z".equals(desc)) return transform(0, "_eject", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)Z");
+                        break;
+                    case "addPotionEffect":
+                        if ("(Lorg/bukkit/potion/PotionEffect;)Z".equals(desc)) return transform(1, "_addPotionEffect", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Lorg/bukkit/potion/PotionEffect;)Z");
+                        break;
+                    case "removePotionEffect":
+                        if ("(Lorg/bukkit/potion/PotionEffectType;)V".equals(desc)) return transform(1, "_removePotionEffect", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Lorg/bukkit/potion/PotionEffectType;)V");
+                        break;
+                }
+            }
             switch (owner) {
                 case "org/bukkit/block/Block":
                     if ("setType".equals(name)) {
@@ -147,48 +197,21 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         return transform(0, "safeGetLivingEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
                     }
                     if ("getNearbyEntities".equals(name) && "(Lorg/bukkit/Location;DDD)Ljava/util/Collection;".equals(desc)) {
-                        return transform(4, "safeGetNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;DDD)Ljava/util/Collection;");
+                        return transform(4, "_getNearbyEntities", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;DDD)Ljava/util/Collection;");
                     }
                     if ("getPlayers".equals(name) && "()Ljava/util/List;".equals(desc)) {
                         return transform(0, "safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
                     }
                     break;
-                case "org/bukkit/entity/Entity":
-                case "org/bukkit/entity/LivingEntity":
-                case "org/bukkit/entity/Player":
-                case "org/bukkit/entity/Damageable":
-                    switch (name) {
-                        case "remove":
-                            if ("()V".equals(desc)) return transform(0, "safeRemove", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)V");
-                            break;
-                        case "setVelocity":
-                            if ("(Lorg/bukkit/util/Vector;)V".equals(desc)) return transform(1, "safeSetVelocity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/util/Vector;)V");
-                            break;
-                        case "teleport":
-                            if ("(Lorg/bukkit/Location;)Z".equals(desc)) return transform(1, "safeTeleportEntity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Lorg/bukkit/Location;)Z");
-                            break;
-                        case "setFireTicks":
-                            if ("(I)V".equals(desc)) return transform(1, "safeSetFireTicks", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;I)V");
-                            break;
-                        case "setCustomName":
-                            if ("(Ljava/lang/String;)V".equals(desc)) return transform(1, "safeSetCustomName", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Ljava/lang/String;)V");
-                            break;
-                        case "setGravity":
-                            if ("(Z)V".equals(desc)) return transform(1, "safeSetGravity", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;Z)V");
-                            break;
-                        case "damage":
-                            if ("(D)V".equals(desc)) return transform(1, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;D)V");
-                            if ("(DLorg/bukkit/entity/Entity;)V".equals(desc)) return transform(2, "safeDamage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Damageable;DLorg/bukkit/entity/Entity;)V");
-                            break;
-                        case "setAI":
-                            if ("(Z)V".equals(desc)) return transform(1, "safeSetAI", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/LivingEntity;Z)V");
-                            break;
-                        case "setGameMode":
-                            if ("(Lorg/bukkit/GameMode;)V".equals(desc)) return transform(1, "safeSetGameMode", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/GameMode;)V");
-                            break;
-                        case "getHealth":
-                            if ("()D".equals(desc)) return transform(0, "safeGetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D");
-                            break;
+                case "org/bukkit/Chunk":
+                    if ("getEntities".equals(name) && "()[Lorg/bukkit/entity/Entity;".equals(desc)) {
+                        return transform(0, "_ce", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;)[Lorg/bukkit/entity/Entity;");
+                    }
+                    if ("load".equals(name) && "(Z)Z".equals(desc)) {
+                        return transform(1, "_cl", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;Z)Z");
+                    }
+                    if ("unload".equals(name) && "(Z)Z".equals(desc)) {
+                        return transform(1, "_cu", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/Chunk;Z)Z");
                     }
                     break;
                 case "org/bukkit/block/BlockState":

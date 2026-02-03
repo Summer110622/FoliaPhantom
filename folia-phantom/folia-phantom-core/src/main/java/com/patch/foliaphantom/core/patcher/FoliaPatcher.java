@@ -20,6 +20,8 @@ import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.TreeType;
 import org.bukkit.World;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
@@ -2082,5 +2084,65 @@ public final class FoliaPatcher {
 
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
+    }
+
+    // --- High-Performance Short-Name Helpers ---
+
+    public static boolean _addPassenger(Plugin p, Entity v, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return v.addPassenger(ps);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        v.getScheduler().run(p, t -> f.complete(v.addPassenger(ps)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _removePassenger(Plugin p, Entity v, Entity ps) {
+        if (Bukkit.isPrimaryThread()) return v.removePassenger(ps);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        v.getScheduler().run(p, t -> f.complete(v.removePassenger(ps)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _eject(Plugin p, Entity v) {
+        if (Bukkit.isPrimaryThread()) return v.eject();
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        v.getScheduler().run(p, t -> f.complete(v.eject()), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _addPotionEffect(Plugin p, LivingEntity e, PotionEffect ef) {
+        if (Bukkit.isPrimaryThread()) return e.addPotionEffect(ef);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> f.complete(e.addPotionEffect(ef)), null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static void _removePotionEffect(Plugin p, LivingEntity e, PotionEffectType t) {
+        if (Bukkit.isPrimaryThread()) e.removePotionEffect(t);
+        else e.getScheduler().run(p, task -> e.removePotionEffect(t), null);
+    }
+
+    public static Entity[] _ce(Plugin p, org.bukkit.Chunk c) {
+        if (Bukkit.isPrimaryThread()) return c.getEntities();
+        CompletableFuture<Entity[]> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.getEntities()));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return new Entity[0]; }
+    }
+
+    public static boolean _cl(Plugin p, org.bukkit.Chunk c, boolean g) {
+        if (Bukkit.isPrimaryThread()) return c.load(g);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.load(g)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static boolean _cu(Plugin p, org.bukkit.Chunk c, boolean s) {
+        if (Bukkit.isPrimaryThread()) return c.unload(s);
+        CompletableFuture<Boolean> f = new CompletableFuture<>();
+        Bukkit.getRegionScheduler().run(p, c.getWorld(), c.getX(), c.getZ(), t -> f.complete(c.unload(s)));
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return false; }
+    }
+
+    public static java.util.Collection<Entity> _getNearbyEntities(Plugin p, World w, Location l, double x, double y, double z) {
+        return safeGetNearbyEntities(p, w, l, x, y, z);
     }
 }

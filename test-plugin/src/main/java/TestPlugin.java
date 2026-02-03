@@ -158,6 +158,24 @@ public class TestPlugin extends JavaPlugin implements Listener {
                         state.update();
                         player.sendMessage("Updated block state at your feet");
 
+                        // 5. Entity#addPassenger, removePassenger, eject
+                        player.addPassenger(player);
+                        player.removePassenger(player);
+                        player.eject();
+                        player.sendMessage("Passenger operations tested");
+
+                        // 6. LivingEntity#addPotionEffect, removePotionEffect
+                        player.addPotionEffect(new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 100, 1));
+                        player.removePotionEffect(org.bukkit.potion.PotionEffectType.SPEED);
+                        player.sendMessage("Potion operations tested");
+
+                        // 7. Chunk operations
+                        org.bukkit.Chunk chunk = player.getLocation().getChunk();
+                        chunk.getEntities();
+                        chunk.load(false);
+                        chunk.unload(true);
+                        player.sendMessage("Chunk operations tested");
+
                         sender.sendMessage("New transformations test successful!");
                     } catch (Exception e) {
                         getLogger().log(Level.SEVERE, "Error in testnew command", e);

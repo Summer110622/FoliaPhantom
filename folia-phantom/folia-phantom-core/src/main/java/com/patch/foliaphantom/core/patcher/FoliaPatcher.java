@@ -210,6 +210,95 @@ public final class FoliaPatcher {
         safeBroadcastMessage(p, m);
     }
 
+    public static void _st(Plugin p, Block b, org.bukkit.Material m) { safeSetBlockType(p, b, m); }
+    public static void _stwp(Plugin p, Block b, org.bukkit.Material m, boolean ph) { safeSetBlockTypeWithPhysics(p, b, m, ph); }
+    public static void _bd(Plugin p, Block b, BlockData d) { safeSetBlockData(p, b, d); }
+    public static void _bdwp(Plugin p, Block b, BlockData d, boolean ph) { safeSetBlockDataWithPhysics(p, b, d, ph); }
+    public static <T extends Entity> T _ss(Plugin p, World w, Location l, Class<T> c) { return safeSpawnEntity(p, w, l, c); }
+    public static void _cl(Plugin p, World w, int x, int z, boolean g) { safeLoadChunk(p, w, x, z, g); }
+    public static org.bukkit.entity.Item _di(Plugin p, World w, Location l, ItemStack i) { return safeDropItem(p, w, l, i); }
+    public static org.bukkit.entity.Item _dn(Plugin p, World w, Location l, ItemStack i) { return safeDropItemNaturally(p, w, l, i); }
+    public static boolean _ex(Plugin p, World w, Location l, float pw, boolean f, boolean b) { return safeCreateExplosion(p, w, l, pw, f, b); }
+    public static <T> void _pe(Plugin p, World w, Location l, Effect e, T d) { safePlayEffect(p, w, l, e, d); }
+    public static void _sd(Plugin p, World w, Location l, Sound s, float v, float pi) { safePlaySound(p, w, l, s, v, pi); }
+    public static org.bukkit.entity.LightningStrike _sl(Plugin p, World w, Location l) { return safeStrikeLightning(p, w, l); }
+    public static boolean _gt(Plugin p, World w, Location l, TreeType t) { return safeGenerateTree(p, w, l, t); }
+    public static <T> boolean _sr(Plugin p, World w, GameRule<T> r, T v) { return safeSetGameRule(p, w, r, v); }
+    public static boolean _up(Plugin p, BlockState s) { return safeUpdateBlockState(p, s); }
+    public static boolean _up(Plugin p, BlockState s, boolean f) { return safeUpdateBlockState(p, s, f); }
+    public static boolean _up(Plugin p, BlockState s, boolean f, boolean ph) { return safeUpdateBlockState(p, s, f, ph); }
+    public static Entity[] _ce(Plugin p, org.bukkit.Chunk c) {
+        if (Bukkit.isPrimaryThread()) return c.getEntities();
+        return _b(p, () -> c.getEntities());
+    }
+    public static java.util.List<Entity> _ge(Plugin p, World w) { return safeGetEntities(p, w); }
+    public static java.util.List<LivingEntity> _gl(Plugin p, World w) { return safeGetLivingEntities(p, w); }
+    public static java.util.Collection<Entity> _gne(Plugin p, World w, Location l, double x, double y, double z) { return safeGetNearbyEntities(p, w, l, x, y, z); }
+    public static java.util.List<Entity> _gn(Plugin p, Entity e, double x, double y, double z) {
+        if (Bukkit.isPrimaryThread()) return e.getNearbyEntities(x, y, z);
+        java.util.List<Entity> r = _b(p, () -> e.getNearbyEntities(x, y, z));
+        return r != null ? r : Collections.emptyList();
+    }
+    public static double _gh(Plugin p, Player pl) { return safeGetHealth(p, pl); }
+    public static void _rm(Plugin p, Entity e) { safeRemove(p, e); }
+    public static void _sv(Plugin p, Entity e, org.bukkit.util.Vector v) { safeSetVelocity(p, e, v); }
+    public static boolean _tp(Plugin p, Entity e, Location l) { return safeTeleportEntity(p, e, l); }
+    public static void _tf(Plugin p, Entity e, int t) { safeSetFireTicks(p, e, t); }
+    public static void _cn(Plugin p, Entity e, String n) { safeSetCustomName(p, e, n); }
+    public static void _sg(Plugin p, Entity e, boolean g) { safeSetGravity(p, e, g); }
+    public static void _dm(Plugin p, Damageable e, double a) { safeDamage(p, e, a); }
+    public static void _dm(Plugin p, Damageable e, double a, Entity s) { safeDamage(p, e, a, s); }
+    public static void _sa(Plugin p, LivingEntity e, boolean a) { safeSetAI(p, e, a); }
+    public static void _sm(Plugin p, Player pl, GameMode m) { safeSetGameMode(p, pl, m); }
+    public static void _si(Plugin p, org.bukkit.inventory.Inventory i, int s, ItemStack it) { safeSetItem(p, i, s, it); }
+    public static java.util.HashMap<Integer, ItemStack> _ai(Plugin p, org.bukkit.inventory.Inventory i, ItemStack... it) { return safeAddItem(p, i, it); }
+    public static void _lc(Plugin p, org.bukkit.inventory.Inventory i) { safeClear(p, i); }
+    public static boolean _ap(Plugin p, Entity e, Entity pa) {
+        if (Bukkit.isPrimaryThread()) return e.addPassenger(pa);
+        Boolean r = _b(p, () -> e.addPassenger(pa));
+        return r != null && r;
+    }
+    public static boolean _rp(Plugin p, Entity e, Entity pa) {
+        if (Bukkit.isPrimaryThread()) return e.removePassenger(pa);
+        Boolean r = _b(p, () -> e.removePassenger(pa));
+        return r != null && r;
+    }
+    public static boolean _ej(Plugin p, Entity e) {
+        if (Bukkit.isPrimaryThread()) return e.eject();
+        Boolean r = _b(p, () -> e.eject());
+        return r != null && r;
+    }
+    public static boolean _ape(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffect ef) {
+        if (Bukkit.isPrimaryThread()) return e.addPotionEffect(ef);
+        Boolean r = _b(p, () -> e.addPotionEffect(ef));
+        return r != null && r;
+    }
+    public static void _rpe(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffectType t) {
+        if (Bukkit.isPrimaryThread()) e.removePotionEffect(t);
+        else _g(p, () -> e.removePotionEffect(t));
+    }
+    public static boolean _cu(Plugin p, World w, int x, int z, boolean s) {
+        if (Bukkit.isPrimaryThread()) return w.unloadChunk(x, z, s);
+        Boolean r = _b(p, () -> w.unloadChunk(x, z, s));
+        return r != null && r;
+    }
+    public static boolean _at(Plugin p, Entity e, String t) {
+        if (Bukkit.isPrimaryThread()) return e.addScoreboardTag(t);
+        Boolean r = _b(p, () -> e.addScoreboardTag(t));
+        return r != null && r;
+    }
+    public static boolean _rt(Plugin p, Entity e, String t) {
+        if (Bukkit.isPrimaryThread()) return e.removeScoreboardTag(t);
+        Boolean r = _b(p, () -> e.removeScoreboardTag(t));
+        return r != null && r;
+    }
+    public static void _sp(Plugin p, World w, org.bukkit.Particle pa, Location l, int c, double ox, double oy, double oz, double d) {
+        if (Bukkit.isPrimaryThread()) w.spawnParticle(pa, l, c, ox, oy, oz, d);
+        else _r(p, l, () -> w.spawnParticle(pa, l, c, ox, oy, oz, d));
+    }
+    public static Block _hb(Plugin p, World w, int x, int z) { return safeGetHighestBlockAt(p, w, x, z); }
+    public static java.util.Set<org.bukkit.OfflinePlayer> _gpt(Plugin p, org.bukkit.scoreboard.Team t) { return safeGetPlayers(p, t); }
+
     /**
      * Cached server version string to reduce repeated method calls.
      */

@@ -55,7 +55,7 @@ public class ScoreboardTransformer implements ClassTransformer {
         teamMap.put("setSuffix(Ljava/lang/String;)V", new MethodMapping("safeSetSuffix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("unregister()V", new MethodMapping("safeUnregisterTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)V"));
         teamMap.put("getEntries()Ljava/util/Set;", new MethodMapping("safeGetTeamEntries", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
-        teamMap.put("getPlayers()Ljava/util/Set;", new MethodMapping("safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
+        teamMap.put("getPlayers()Ljava/util/Set;", new MethodMapping("_gpt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
         teamMap.put("getSize()I", new MethodMapping("safeGetSize", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)I"));
         methodMappings.put(TEAM_OWNER, teamMap);
 

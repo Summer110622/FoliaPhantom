@@ -94,16 +94,16 @@ public class BlockTransformer implements ClassTransformer {
                     String newDesc = null;
 
                     if ("setType".equals(name) && "(Lorg/bukkit/Material;)V".equals(desc)) {
-                        newName = "safeSetBlockType";
+                        newName = "_st";
                         newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;)V";
                     } else if ("setType".equals(name) && "(Lorg/bukkit/Material;Z)V".equals(desc)) {
-                        newName = "safeSetBlockTypeWithPhysics";
+                        newName = "_stwp";
                         newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/Material;Z)V";
                     } else if ("setBlockData".equals(name) && "(Lorg/bukkit/block/data/BlockData;)V".equals(desc)) {
-                        newName = "safeSetBlockData";
+                        newName = "_bd";
                         newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;)V";
                     } else if ("setBlockData".equals(name) && "(Lorg/bukkit/block/data/BlockData;Z)V".equals(desc)) {
-                        newName = "safeSetBlockDataWithPhysics";
+                        newName = "_bdwp";
                         newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/Block;Lorg/bukkit/block/data/BlockData;Z)V";
                     }
 

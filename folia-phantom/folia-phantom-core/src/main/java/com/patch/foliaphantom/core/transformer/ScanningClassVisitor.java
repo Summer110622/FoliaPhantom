@@ -28,6 +28,8 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/scheduler/BukkitScheduler",
         "org/bukkit/scheduler/BukkitRunnable",
         "org/bukkit/WorldCreator",
+        "org/bukkit/Chunk",
+        "org/bukkit/inventory/Inventory",
         "org/bukkit/entity/Player",
         "org/bukkit/scoreboard/Scoreboard",
         "org/bukkit/scoreboard/Team",
@@ -91,11 +93,13 @@ public class ScanningClassVisitor extends ClassVisitor {
                         switch (name) {
                             case "spawn":
                             case "loadChunk":
+                            case "unloadChunk":
                             case "getEntities":
                             case "getLivingEntities":
                             case "getPlayers":
                             case "getNearbyEntities":
                             case "getHighestBlockAt":
+                            case "spawnParticle":
                                 needsPatching = true;
                                 break;
                         }
@@ -122,12 +126,23 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "getNearbyEntities":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
+                            case "addPotionEffect":
+                            case "removePotionEffect":
+                            case "addScoreboardTag":
+                            case "removeScoreboardTag":
                                 needsPatching = true;
                                 break;
                         }
                         break;
                     case "org/bukkit/block/BlockState":
                         if ("update".equals(name)) needsPatching = true;
+                        break;
+                    case "org/bukkit/inventory/Inventory":
+                        if ("setItem".equals(name) || "addItem".equals(name) || "clear".equals(name)) needsPatching = true;
                         break;
                     // For other owners in the set, their presence alone is enough.
                     default:

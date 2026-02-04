@@ -103,7 +103,7 @@ public class WorldSpawnEntityTransformer implements ClassTransformer {
 
                 if (name.equals("spawn") && descriptor.equals("(Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;")) {
                     matched = true;
-                    name = "safeSpawnEntity";
+                    name = "_ss";
                     newDescriptor = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;";
                 } else if (name.equals("spawnEntity") && descriptor.equals("(Lorg/bukkit/Location;Lorg/bukkit/entity/EntityType;)Lorg/bukkit/entity/Entity;")) {
                     // This specific overload is deprecated but plugins might still use it.
@@ -117,15 +117,15 @@ public class WorldSpawnEntityTransformer implements ClassTransformer {
 
                     // Now we can use the same logic as the spawn(Location, Class) method.
                     matched = true;
-                    name = "safeSpawnEntity"; // The target method name in FoliaPatcher
+                    name = "_ss"; // The target method name in FoliaPatcher
                     newDescriptor = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Ljava/lang/Class;)Lorg/bukkit/entity/Entity;";
                 } else if (name.equals("dropItem") && descriptor.equals("(Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;")) {
                     matched = true;
-                    name = "safeDropItem";
+                    name = "_di";
                     newDescriptor = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;";
                 } else if (name.equals("dropItemNaturally") && descriptor.equals("(Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;")) {
                     matched = true;
-                    name = "safeDropItemNaturally";
+                    name = "_dn";
                     newDescriptor = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/inventory/ItemStack;)Lorg/bukkit/entity/Item;";
                 }
 

@@ -96,7 +96,7 @@ public class PlayerHealthTransformer implements ClassTransformer {
                     super.visitMethodInsn(
                         Opcodes.INVOKESTATIC,
                         relocatedPatcherPath + "/FoliaPatcher",
-                        "safeGetHealth",
+                        "_gh",
                         "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)D",
                         false
                     );

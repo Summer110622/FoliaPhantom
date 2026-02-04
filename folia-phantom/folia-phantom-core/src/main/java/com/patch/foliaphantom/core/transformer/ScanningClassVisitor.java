@@ -38,6 +38,8 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/block/Block",
         "org/bukkit/World",
         "org/bukkit/Bukkit",
+        "org/bukkit/boss/BossBar",
+        "org/bukkit/boss/KeyedBossBar",
         "org/bukkit/plugin/Plugin",
         "org/bukkit/plugin/java/JavaPlugin",
         "org/bukkit/entity/Entity",
@@ -96,6 +98,9 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "getPlayers":
                             case "getNearbyEntities":
                             case "getHighestBlockAt":
+                            case "rayTraceBlocks":
+                            case "rayTraceEntities":
+                            case "spawnParticle":
                                 needsPatching = true;
                                 break;
                         }
@@ -122,6 +127,7 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "spawnParticle":
                                 needsPatching = true;
                                 break;
                         }

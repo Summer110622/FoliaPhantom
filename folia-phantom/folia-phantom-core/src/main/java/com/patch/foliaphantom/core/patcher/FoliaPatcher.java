@@ -2083,4 +2083,44 @@ public final class FoliaPatcher {
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
     }
+
+    public static org.bukkit.util.RayTraceResult _rtb(Plugin p, World w, Location s, org.bukkit.util.Vector d, double m, org.bukkit.FluidCollisionMode f) {
+        if (Bukkit.isOwnedByCurrentRegion(s)) return w.rayTraceBlocks(s, d, m, f);
+        return _b(p, () -> w.rayTraceBlocks(s, d, m, f));
+    }
+
+    public static org.bukkit.util.RayTraceResult _rtb(Plugin p, World w, Location s, org.bukkit.util.Vector d, double m, org.bukkit.FluidCollisionMode f, boolean i) {
+        if (Bukkit.isOwnedByCurrentRegion(s)) return w.rayTraceBlocks(s, d, m, f, i);
+        return _b(p, () -> w.rayTraceBlocks(s, d, m, f, i));
+    }
+
+    public static org.bukkit.util.RayTraceResult _rte(Plugin p, World w, Location s, org.bukkit.util.Vector d, double m, double r, java.util.function.Predicate<Entity> fi) {
+        if (Bukkit.isOwnedByCurrentRegion(s)) return w.rayTraceEntities(s, d, m, r, fi);
+        return _b(p, () -> w.rayTraceEntities(s, d, m, r, fi));
+    }
+
+    public static void _sp(Plugin p, World w, org.bukkit.Particle pa, Location l, int c) {
+        if (Bukkit.isOwnedByCurrentRegion(l)) w.spawnParticle(pa, l, c);
+        else Bukkit.getRegionScheduler().run(p, l, t -> w.spawnParticle(pa, l, c));
+    }
+
+    public static void _sp(Plugin p, Player pl, org.bukkit.Particle pa, Location l, int c) {
+        if (Bukkit.isOwnedByCurrentRegion(pl)) pl.spawnParticle(pa, l, c);
+        else pl.getScheduler().run(p, t -> pl.spawnParticle(pa, l, c), null);
+    }
+
+    public static void _bb_ap(Plugin p, org.bukkit.boss.BossBar b, Player pl) {
+        if (Bukkit.isPrimaryThread()) b.addPlayer(pl);
+        else Bukkit.getGlobalRegionScheduler().run(p, t -> b.addPlayer(pl));
+    }
+
+    public static void _bb_rp(Plugin p, org.bukkit.boss.BossBar b, Player pl) {
+        if (Bukkit.isPrimaryThread()) b.removePlayer(pl);
+        else Bukkit.getGlobalRegionScheduler().run(p, t -> b.removePlayer(pl));
+    }
+
+    public static void _bb_ra(Plugin p, org.bukkit.boss.BossBar b) {
+        if (Bukkit.isPrimaryThread()) b.removeAll();
+        else Bukkit.getGlobalRegionScheduler().run(p, t -> b.removeAll());
+    }
 }

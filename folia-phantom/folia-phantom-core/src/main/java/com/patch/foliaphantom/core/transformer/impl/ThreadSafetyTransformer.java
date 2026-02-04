@@ -152,12 +152,25 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                     if ("getPlayers".equals(name) && "()Ljava/util/List;".equals(desc)) {
                         return transform(0, "safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;)Ljava/util/List;");
                     }
+                    if ("rayTraceBlocks".equals(name)) {
+                        if ("(Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DLorg/bukkit/FluidCollisionMode;)Lorg/bukkit/util/RayTraceResult;".equals(desc)) return transform(4, "_rtb", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DLorg/bukkit/FluidCollisionMode;)Lorg/bukkit/util/RayTraceResult;");
+                        if ("(Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DLorg/bukkit/FluidCollisionMode;Z)Lorg/bukkit/util/RayTraceResult;".equals(desc)) return transform(5, "_rtb", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DLorg/bukkit/FluidCollisionMode;Z)Lorg/bukkit/util/RayTraceResult;");
+                    }
+                    if ("rayTraceEntities".equals(name) && "(Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DDLjava/util/function/Predicate;)Lorg/bukkit/util/RayTraceResult;".equals(desc)) {
+                        return transform(5, "_rte", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Location;Lorg/bukkit/util/Vector;DDLjava/util/function/Predicate;)Lorg/bukkit/util/RayTraceResult;");
+                    }
+                    if ("spawnParticle".equals(name) && "(Lorg/bukkit/Particle;Lorg/bukkit/Location;I)V".equals(desc)) {
+                        return transform(3, "_sp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;Lorg/bukkit/Particle;Lorg/bukkit/Location;I)V");
+                    }
                     break;
                 case "org/bukkit/entity/Entity":
                 case "org/bukkit/entity/LivingEntity":
                 case "org/bukkit/entity/Player":
                 case "org/bukkit/entity/Damageable":
                     switch (name) {
+                        case "spawnParticle":
+                            if ("(Lorg/bukkit/Particle;Lorg/bukkit/Location;I)V".equals(desc)) return transform(3, "_sp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Particle;Lorg/bukkit/Location;I)V");
+                            break;
                         case "remove":
                             if ("()V".equals(desc)) return transform(0, "safeRemove", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Entity;)V");
                             break;
@@ -197,6 +210,12 @@ public class ThreadSafetyTransformer implements ClassTransformer {
                         if ("(Z)Z".equals(desc)) return transform(1, "safeUpdateBlockState", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/BlockState;Z)Z");
                         if ("(ZZ)Z".equals(desc)) return transform(2, "safeUpdateBlockState", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/block/BlockState;ZZ)Z");
                     }
+                    break;
+                case "org/bukkit/boss/BossBar":
+                case "org/bukkit/boss/KeyedBossBar":
+                    if ("addPlayer".equals(name) && "(Lorg/bukkit/entity/Player;)V".equals(desc)) return transform(1, "_bb_ap", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/boss/BossBar;Lorg/bukkit/entity/Player;)V");
+                    if ("removePlayer".equals(name) && "(Lorg/bukkit/entity/Player;)V".equals(desc)) return transform(1, "_bb_rp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/boss/BossBar;Lorg/bukkit/entity/Player;)V");
+                    if ("removeAll".equals(name) && "()V".equals(desc)) return transform(0, "_bb_ra", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/boss/BossBar;)V");
                     break;
             }
             return false;

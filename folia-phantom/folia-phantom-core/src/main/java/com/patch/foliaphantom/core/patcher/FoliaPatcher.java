@@ -14,6 +14,7 @@ import com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Effect;
+import org.bukkit.FluidCollisionMode;
 import org.bukkit.GameMode;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
@@ -23,6 +24,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -208,6 +210,158 @@ public final class FoliaPatcher {
 
     public static void _bm(Plugin p, String m) {
         safeBroadcastMessage(p, m);
+    }
+
+    public static void _bb_ap(Plugin p, BossBar b, Player pl) {
+        _g(p, () -> b.addPlayer(pl));
+    }
+
+    public static void _bb_rp(Plugin p, BossBar b, Player pl) {
+        _g(p, () -> b.removePlayer(pl));
+    }
+
+    public static void _bb_ra(Plugin p, BossBar b) {
+        _g(p, () -> b.removeAll());
+    }
+
+    public static org.bukkit.util.RayTraceResult _rtb(Plugin p, World w, Location s, org.bukkit.util.Vector d, double r, FluidCollisionMode m, boolean i) {
+        return _b(p, () -> w.rayTraceBlocks(s, d, r, m, i));
+    }
+
+    public static org.bukkit.util.RayTraceResult _rte(Plugin p, World w, Location s, org.bukkit.util.Vector d, double r, double b, java.util.function.Predicate<Entity> f) {
+        return _b(p, () -> w.rayTraceEntities(s, d, r, b, f));
+    }
+
+    public static void _si(Plugin p, org.bukkit.inventory.Inventory i, int s, ItemStack it) {
+        safeSetItem(p, i, s, it);
+    }
+
+    public static Map<Integer, ItemStack> _ai(Plugin p, org.bukkit.inventory.Inventory i, ItemStack... it) {
+        return safeAddItem(p, i, it);
+    }
+
+    public static void _lc(Plugin p, org.bukkit.inventory.Inventory i) {
+        safeClear(p, i);
+    }
+
+    public static <T extends Entity> T _ss(Plugin p, World w, Location l, Class<T> c) {
+        return safeSpawnEntity(p, w, l, c);
+    }
+
+    public static org.bukkit.entity.Item _di(Plugin p, World w, Location l, ItemStack i) {
+        return safeDropItem(p, w, l, i);
+    }
+
+    public static org.bukkit.entity.Item _dn(Plugin p, World w, Location l, ItemStack i) {
+        return safeDropItemNaturally(p, w, l, i);
+    }
+
+    public static boolean _ex(Plugin p, World w, Location l, float pw, boolean f, boolean b) {
+        return safeCreateExplosion(p, w, l, pw, f, b);
+    }
+
+    public static <T> void _pe(Plugin p, World w, Location l, Effect e, T d) {
+        safePlayEffect(p, w, l, e, d);
+    }
+
+    public static void _sd(Plugin p, World w, Location l, Sound s, float v, float pi) {
+        safePlaySound(p, w, l, s, v, pi);
+    }
+
+    public static org.bukkit.entity.LightningStrike _sl(Plugin p, World w, Location l) {
+        return safeStrikeLightning(p, w, l);
+    }
+
+    public static boolean _gt(Plugin p, World w, Location l, TreeType t) {
+        return safeGenerateTree(p, w, l, t);
+    }
+
+    public static <T> boolean _sr(Plugin p, World w, GameRule<T> r, T v) {
+        return safeSetGameRule(p, w, r, v);
+    }
+
+    public static boolean _up(Plugin p, BlockState s) {
+        return safeUpdateBlockState(p, s);
+    }
+
+    public static void _bd(Plugin p, Block b, BlockData d) {
+        safeSetBlockData(p, b, d);
+    }
+
+    public static void _bdwp(Plugin p, Block b, BlockData d, boolean ph) {
+        safeSetBlockDataWithPhysics(p, b, d, ph);
+    }
+
+    public static void _st(Plugin p, Block b, org.bukkit.Material m) {
+        safeSetBlockType(p, b, m);
+    }
+
+    public static void _stwp(Plugin p, Block b, org.bukkit.Material m, boolean ph) {
+        safeSetBlockTypeWithPhysics(p, b, m, ph);
+    }
+
+    public static boolean _at(Plugin p, Entity e, String t) {
+        return _b(p, () -> e.addScoreboardTag(t));
+    }
+
+    public static boolean _rt(Plugin p, Entity e, String t) {
+        return _b(p, () -> e.removeScoreboardTag(t));
+    }
+
+    public static java.util.Collection<Entity> _gn(Plugin p, Entity e, double x, double y, double z) {
+        return _b(p, () -> e.getNearbyEntities(x, y, z));
+    }
+
+    public static Block _hb(Plugin p, World w, int x, int z) {
+        return safeGetHighestBlockAt(p, w, x, z);
+    }
+
+    public static void _sp(Plugin p, World w, org.bukkit.Particle pa, Location l, int c, double ox, double oy, double oz, double d) {
+        _r(p, l, () -> w.spawnParticle(pa, l, c, ox, oy, oz, d));
+    }
+
+    public static boolean _ape(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffect ef) {
+        return _b(p, () -> e.addPotionEffect(ef));
+    }
+
+    public static void _rpe(Plugin p, LivingEntity e, org.bukkit.potion.PotionEffectType t) {
+        _e(p, e, () -> e.removePotionEffect(t));
+    }
+
+    public static boolean _ap(Plugin p, Entity e, Entity pa) {
+        return _b(p, () -> e.addPassenger(pa));
+    }
+
+    public static boolean _rp(Plugin p, Entity e, Entity pa) {
+        return _b(p, () -> e.removePassenger(pa));
+    }
+
+    public static boolean _ej(Plugin p, Entity e) {
+        return _b(p, () -> e.eject());
+    }
+
+    public static java.util.List<Entity> _ce(Plugin p, org.bukkit.Chunk c) {
+        return _b(p, () -> java.util.Arrays.asList(c.getEntities()));
+    }
+
+    public static java.util.Collection<Entity> _ge(Plugin p, World w) {
+        return _b(p, () -> w.getEntities());
+    }
+
+    public static java.util.Collection<LivingEntity> _gl(Plugin p, World w) {
+        return _b(p, () -> w.getLivingEntities());
+    }
+
+    public static java.util.Collection<Entity> _gne(Plugin p, World w, Location l, double x, double y, double z) {
+        return _b(p, () -> w.getNearbyEntities(l, x, y, z));
+    }
+
+    public static void _cl(Plugin p, org.bukkit.Chunk c) {
+        _r(p, c.getBlock(0, 0, 0).getLocation(), () -> c.load());
+    }
+
+    public static void _cu(Plugin p, org.bukkit.Chunk c) {
+        _r(p, c.getBlock(0, 0, 0).getLocation(), () -> c.unload());
     }
 
     /**

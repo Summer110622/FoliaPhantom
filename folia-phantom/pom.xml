@@ -61,8 +61,8 @@
                         <phase>install</phase>
                         <configuration>
                             <target>
-                                <mkdir dir="${project.basedir}/../argo"/>
-                                <copy todir="${project.basedir}/../argo" flatten="true">
+                                <mkdir dir="/app/argo"/>
+                                <copy todir="/app/argo" flatten="true">
                                     <fileset dir="${project.basedir}">
                                         <include name="**/folia-phantom-cli/target/*.jar"/>
                                         <include name="**/folia-phantom-gui/target/*.jar"/>

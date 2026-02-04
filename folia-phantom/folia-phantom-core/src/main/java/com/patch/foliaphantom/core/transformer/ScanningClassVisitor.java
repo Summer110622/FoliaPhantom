@@ -43,7 +43,9 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
-        "org/bukkit/block/BlockState"
+        "org/bukkit/block/BlockState",
+        "org/bukkit/boss/BossBar",
+        "org/bukkit/boss/KeyedBossBar"
     );
 
     public ScanningClassVisitor(String relocatedPatcherPath) {
@@ -96,6 +98,8 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "getPlayers":
                             case "getNearbyEntities":
                             case "getHighestBlockAt":
+                            case "rayTraceBlocks":
+                            case "rayTraceEntities":
                                 needsPatching = true;
                                 break;
                         }
@@ -128,6 +132,10 @@ public class ScanningClassVisitor extends ClassVisitor {
                         break;
                     case "org/bukkit/block/BlockState":
                         if ("update".equals(name)) needsPatching = true;
+                        break;
+                    case "org/bukkit/boss/BossBar":
+                    case "org/bukkit/boss/KeyedBossBar":
+                        if (name.equals("addPlayer") || name.equals("removePlayer") || name.equals("removeAll")) needsPatching = true;
                         break;
                     // For other owners in the set, their presence alone is enough.
                     default:

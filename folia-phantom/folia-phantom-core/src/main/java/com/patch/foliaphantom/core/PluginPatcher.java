@@ -34,6 +34,8 @@ import com.patch.foliaphantom.core.transformer.impl.ServerVersionTransformer;
 import com.patch.foliaphantom.core.transformer.impl.PluginEnableTransformer;
 import com.patch.foliaphantom.core.transformer.impl.CommandDispatchTransformer;
 import com.patch.foliaphantom.core.transformer.impl.OfflinePlayerTransformer;
+import com.patch.foliaphantom.core.transformer.impl.BossBarTransformer;
+import com.patch.foliaphantom.core.transformer.impl.RayTraceTransformer;
 
 import org.objectweb.asm.ClassReader;
 import org.objectweb.asm.ClassVisitor;
@@ -274,6 +276,8 @@ public class PluginPatcher {
             visitorTransformers.add(new PluginEnableTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new CommandDispatchTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new OfflinePlayerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new BossBarTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new RayTraceTransformer(logger, relocatedPatcherPath));
 
             this.nodeTransformers = new ArrayList<>();
             nodeTransformers.add(new AsyncEventHandlerTransformer(logger, relocatedPatcherPath, asyncEventHandlers));

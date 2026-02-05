@@ -2083,4 +2083,53 @@ public final class FoliaPatcher {
         // Otherwise, fall back to the existing safe event calling logic.
         safeCallEvent(plugin, event);
     }
+
+    // =========================================================================
+    // High-Performance Helpers (Internal Use)
+    // =========================================================================
+
+    /**
+     * Performs a blocking execution on a dedicated executor.
+     */
+    public static <T> T blockingExecute(java.util.concurrent.Callable<T> callable) {
+        try {
+            return worldGenExecutor.submit(callable).get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
+        } catch (Exception e) {
+            handleException("Blocking execution failed", e);
+            return null;
+        }
+    }
+
+    /**
+     * Performs a global region scheduler execution.
+     */
+    public static void globalExecute(Plugin plugin, Runnable runnable) {
+        if (Bukkit.isPrimaryThread()) {
+            runnable.run();
+        } else {
+            Bukkit.getGlobalRegionScheduler().run(plugin, t -> runnable.run());
+        }
+    }
+
+    /**
+     * Performs a region-based scheduler execution.
+     */
+    public static void regionExecute(Plugin plugin, Location location, Runnable runnable) {
+        if (Bukkit.isPrimaryThread()) {
+            runnable.run();
+        } else {
+            Bukkit.getRegionScheduler().run(plugin, location, t -> runnable.run());
+        }
+    }
+
+    /**
+     * Performs an entity-based scheduler execution.
+     */
+    public static void entityExecute(Plugin plugin, Entity entity, Runnable runnable) {
+        if (Bukkit.isPrimaryThread()) {
+            runnable.run();
+        } else {
+            entity.getScheduler().run(plugin, t -> runnable.run(), null);
+        }
+    }
 }

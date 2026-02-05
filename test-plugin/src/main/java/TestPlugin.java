@@ -44,6 +44,29 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testentity")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                for (Entity entity : player.getNearbyEntities(5, 5, 5)) {
+                    // Test setVelocity
+                    entity.setVelocity(new org.bukkit.util.Vector(0, 1, 0));
+                    // Test setFireTicks
+                    entity.setFireTicks(100);
+                    // Test setCustomName
+                    entity.setCustomName("Patched Entity");
+                    // Test setGravity
+                    entity.setGravity(false);
+                    // Test teleport
+                    entity.teleport(player.getLocation());
+
+                    player.sendMessage("Applied multiple patched actions to: " + entity.getType());
+                    return true;
+                }
+                player.sendMessage("No nearby entities found.");
+            }
+            return true;
+        }
+
         if (command.getName().equalsIgnoreCase("testgetonlineplayers")) {
             sender.sendMessage("Testing getOnlinePlayers by calling it from an async thread...");
             Bukkit.getScheduler().runTaskAsynchronously(this, () -> {

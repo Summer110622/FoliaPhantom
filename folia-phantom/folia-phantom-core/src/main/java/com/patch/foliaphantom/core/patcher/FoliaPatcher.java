@@ -13,6 +13,7 @@ package com.patch.foliaphantom.core.patcher;
 import com.patch.foliaphantom.core.exception.FoliaPatcherTimeoutException;
 import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
+import org.bukkit.Chunk;
 import org.bukkit.Effect;
 import org.bukkit.GameMode;
 import org.bukkit.GameRule;
@@ -23,6 +24,7 @@ import org.bukkit.World;
 import org.bukkit.block.Block;
 import org.bukkit.block.BlockState;
 import org.bukkit.block.data.BlockData;
+import org.bukkit.boss.BossBar;
 import org.bukkit.entity.Damageable;
 import org.bukkit.entity.Entity;
 import org.bukkit.entity.LivingEntity;
@@ -34,6 +36,8 @@ import org.bukkit.event.player.PlayerEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.plugin.Plugin;
 import org.bukkit.plugin.PluginManager;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.scheduler.BukkitScheduler;
 import org.bukkit.scheduler.BukkitTask;
 
@@ -208,6 +212,191 @@ public final class FoliaPatcher {
 
     public static void _bm(Plugin p, String m) {
         safeBroadcastMessage(p, m);
+    }
+
+    public static boolean _ape(Plugin p, LivingEntity e, PotionEffect ef) {
+        if (Bukkit.isPrimaryThread()) return e.addPotionEffect(ef);
+        return _b(p, () -> e.addPotionEffect(ef)) != null;
+    }
+
+    public static void _rpe(Plugin p, LivingEntity e, PotionEffectType t) {
+        _e(p, e, () -> e.removePotionEffect(t));
+    }
+
+    public static boolean _ap(Plugin p, Entity e, Entity a) {
+        _e(p, e, () -> e.addPassenger(a));
+        return true;
+    }
+
+    public static boolean _rp(Plugin p, Entity e, Entity r) {
+        Boolean b = _b(p, () -> e.removePassenger(r));
+        return b != null && b;
+    }
+
+    public static boolean _ej(Plugin p, Entity e) {
+        Boolean b = _b(p, () -> e.eject());
+        return b != null && b;
+    }
+
+    public static Entity[] _ce(Plugin p, Chunk c) {
+        if (Bukkit.isPrimaryThread()) return c.getEntities();
+        java.util.List<Entity> l = _b(p, () -> java.util.Arrays.asList(c.getEntities()));
+        return l != null ? l.toArray(new Entity[0]) : new Entity[0];
+    }
+
+    public static java.util.List<Entity> _ge(Plugin p, World w) {
+        return safeGetEntities(p, w);
+    }
+
+    public static java.util.List<LivingEntity> _gl(Plugin p, World w) {
+        return safeGetLivingEntities(p, w);
+    }
+
+    public static java.util.Collection<Entity> _gne(Plugin p, World w, Location l, double x, double y, double z) {
+        return safeGetNearbyEntities(p, w, l, x, y, z);
+    }
+
+    public static void _cl(Plugin p, World w, int x, int z, boolean g) {
+        safeLoadChunk(p, w, x, z, g);
+    }
+
+    public static boolean _cl(Plugin p, Chunk c, boolean g) {
+        safeLoadChunk(p, c.getWorld(), c.getX(), c.getZ(), g);
+        return true;
+    }
+
+    public static boolean _cu(Plugin p, Chunk c, boolean s) {
+        if (Bukkit.isPrimaryThread()) return c.unload(s);
+        Boolean b = _b(p, () -> c.unload(s));
+        return b != null && b;
+    }
+
+    public static org.bukkit.util.RayTraceResult _rtb(Plugin p, World w, Location l, org.bukkit.util.Vector d, double m, org.bukkit.FluidCollisionMode f, boolean i) {
+        if (Bukkit.isPrimaryThread()) return w.rayTraceBlocks(l, d, m, f, i);
+        return _b(p, () -> w.rayTraceBlocks(l, d, m, f, i));
+    }
+
+    public static org.bukkit.util.RayTraceResult _rte(Plugin p, World w, Location l, org.bukkit.util.Vector d, double m, double s, java.util.function.Predicate<Entity> f) {
+        if (Bukkit.isPrimaryThread()) return w.rayTraceEntities(l, d, m, s, f);
+        return _b(p, () -> w.rayTraceEntities(l, d, m, s, f));
+    }
+
+    public static <T extends Entity> T _ss(Plugin p, World w, Location l, Class<T> c) {
+        return safeSpawnEntity(p, w, l, c);
+    }
+
+    public static org.bukkit.entity.Item _di(Plugin p, World w, Location l, ItemStack i) {
+        return safeDropItem(p, w, l, i);
+    }
+
+    public static org.bukkit.entity.Item _dn(Plugin p, World w, Location l, ItemStack i) {
+        return safeDropItemNaturally(p, w, l, i);
+    }
+
+    public static boolean _ex(Plugin p, World w, Location l, float po, boolean f, boolean b) {
+        return safeCreateExplosion(p, w, l, po, f, b);
+    }
+
+    public static <T> void _pe(Plugin p, World w, Location l, Effect e, T d) {
+        safePlayEffect(p, w, l, e, d);
+    }
+
+    public static void _sd(Plugin p, World w, Location l, Sound s, float v, float pi) {
+        safePlaySound(p, w, l, s, v, pi);
+    }
+
+    public static org.bukkit.entity.LightningStrike _sl(Plugin p, World w, Location l) {
+        return safeStrikeLightning(p, w, l);
+    }
+
+    public static boolean _gt(Plugin p, World w, Location l, TreeType t) {
+        return safeGenerateTree(p, w, l, t);
+    }
+
+    public static <T> boolean _sr(Plugin p, World w, GameRule<T> r, T v) {
+        return safeSetGameRule(p, w, r, v);
+    }
+
+    public static boolean _up(Plugin p, BlockState s) {
+        return safeUpdateBlockState(p, s);
+    }
+
+    public static boolean _up(Plugin p, BlockState s, boolean f) {
+        return safeUpdateBlockState(p, s, f);
+    }
+
+    public static boolean _up(Plugin p, BlockState s, boolean f, boolean ap) {
+        return safeUpdateBlockState(p, s, f, ap);
+    }
+
+    public static void _bd(Plugin p, Block b, BlockData d) {
+        safeSetBlockData(p, b, d);
+    }
+
+    public static void _bdwp(Plugin p, Block b, BlockData d, boolean ph) {
+        safeSetBlockDataWithPhysics(p, b, d, ph);
+    }
+
+    public static void _st(Plugin p, Block b, org.bukkit.Material m) {
+        safeSetBlockType(p, b, m);
+    }
+
+    public static void _stwp(Plugin p, Block b, org.bukkit.Material m, boolean ph) {
+        safeSetBlockTypeWithPhysics(p, b, m, ph);
+    }
+
+    public static boolean _at(Plugin p, Entity e, String t) {
+        if (Bukkit.isPrimaryThread()) return e.addScoreboardTag(t);
+        Boolean b = _b(p, () -> e.addScoreboardTag(t));
+        return b != null && b;
+    }
+
+    public static boolean _rt(Plugin p, Entity e, String t) {
+        if (Bukkit.isPrimaryThread()) return e.removeScoreboardTag(t);
+        Boolean b = _b(p, () -> e.removeScoreboardTag(t));
+        return b != null && b;
+    }
+
+    public static java.util.List<Entity> _gn(Plugin p, Entity e, double x, double y, double z) {
+        if (Bukkit.isPrimaryThread()) return e.getNearbyEntities(x, y, z);
+        return _b(p, () -> e.getNearbyEntities(x, y, z));
+    }
+
+    public static void _si(Plugin p, org.bukkit.inventory.Inventory i, int s, ItemStack it) {
+        safeSetItem(p, i, s, it);
+    }
+
+    public static java.util.HashMap<Integer, ItemStack> _ai(Plugin p, org.bukkit.inventory.Inventory i, ItemStack... it) {
+        return safeAddItem(p, i, it);
+    }
+
+    public static void _lc(Plugin p, org.bukkit.inventory.Inventory i) {
+        safeClear(p, i);
+    }
+
+    public static void _sp(Plugin p, World w, org.bukkit.Particle pa, Location l, int c, double ox, double oy, double oz, double s) {
+        if (Bukkit.isPrimaryThread()) w.spawnParticle(pa, l, c, ox, oy, oz, s);
+        else _r(p, l, () -> w.spawnParticle(pa, l, c, ox, oy, oz, s));
+    }
+
+    public static void _bb_ap(Plugin p, BossBar b, Player pl) {
+        _g(p, () -> b.addPlayer(pl));
+    }
+
+    public static void _bb_rp(Plugin p, BossBar b, Player pl) {
+        _g(p, () -> b.removePlayer(pl));
+    }
+
+    public static void _bb_ra(Plugin p, BossBar b) {
+        _g(p, () -> b.removeAll());
+    }
+
+    public static java.util.Set<org.bukkit.OfflinePlayer> _gpt(Plugin p, org.bukkit.scoreboard.Team t) {
+        return safeGetPlayers(p, t);
+    }
+
+    public static Block _hb(Plugin p, World w, int x, int z) {
+        return safeGetHighestBlockAt(p, w, x, z);
     }
 
     /**
@@ -1827,7 +2016,7 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe Entity Operations ---
 
-    public static void safeRemove(Plugin plugin, Entity entity) {
+    public static void _rm(Plugin plugin, Entity entity) {
         if (Bukkit.isPrimaryThread()) {
             entity.remove();
         } else {
@@ -1835,7 +2024,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetVelocity(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
+    public static void _sv(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
         if (Bukkit.isPrimaryThread()) {
             entity.setVelocity(velocity);
         } else {
@@ -1843,7 +2032,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static boolean safeTeleportEntity(Plugin plugin, Entity entity, Location location) {
+    public static boolean _te(Plugin plugin, Entity entity, Location location) {
         if (Bukkit.isPrimaryThread()) {
             return entity.teleport(location);
         } else {
@@ -1874,7 +2063,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetFireTicks(Plugin plugin, Entity entity, int ticks) {
+    public static void _sf(Plugin plugin, Entity entity, int ticks) {
         if (Bukkit.isPrimaryThread()) {
             entity.setFireTicks(ticks);
         } else {
@@ -1882,7 +2071,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetCustomName(Plugin plugin, Entity entity, String name) {
+    public static void _sn(Plugin plugin, Entity entity, String name) {
         if (Bukkit.isPrimaryThread()) {
             entity.setCustomName(name);
         } else {
@@ -1890,7 +2079,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetGravity(Plugin plugin, Entity entity, boolean gravity) {
+    public static void _sg(Plugin plugin, Entity entity, boolean gravity) {
         if (Bukkit.isPrimaryThread()) {
             entity.setGravity(gravity);
         } else {
@@ -1898,7 +2087,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeDamage(Plugin plugin, Damageable entity, double amount) {
+    public static void _da(Plugin plugin, Damageable entity, double amount) {
         if (Bukkit.isPrimaryThread()) {
             entity.damage(amount);
         } else {
@@ -1906,7 +2095,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeDamage(Plugin plugin, Damageable entity, double amount, Entity source) {
+    public static void _da(Plugin plugin, Damageable entity, double amount, Entity source) {
         if (Bukkit.isPrimaryThread()) {
             entity.damage(amount, source);
         } else {
@@ -1914,7 +2103,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetAI(Plugin plugin, LivingEntity entity, boolean ai) {
+    public static void _sa(Plugin plugin, LivingEntity entity, boolean ai) {
         if (Bukkit.isPrimaryThread()) {
             entity.setAI(ai);
         } else {
@@ -1922,7 +2111,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetGameMode(Plugin plugin, Player player, GameMode gameMode) {
+    public static void _sm(Plugin plugin, Player player, GameMode gameMode) {
         if (Bukkit.isPrimaryThread()) {
             player.setGameMode(gameMode);
         } else {

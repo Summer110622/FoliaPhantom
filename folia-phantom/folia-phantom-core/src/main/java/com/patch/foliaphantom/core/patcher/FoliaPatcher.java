@@ -1930,6 +1930,21 @@ public final class FoliaPatcher {
         }
     }
 
+  public static void _bb_ap(Plugin p, org.bukkit.boss.BossBar b, Player pl) {
+    if (Bukkit.isPrimaryThread()) b.addPlayer(pl);
+    else Bukkit.getGlobalRegionScheduler().run(p, t -> b.addPlayer(pl));
+  }
+
+  public static void _bb_rp(Plugin p, org.bukkit.boss.BossBar b, Player pl) {
+    if (Bukkit.isPrimaryThread()) b.removePlayer(pl);
+    else Bukkit.getGlobalRegionScheduler().run(p, t -> b.removePlayer(pl));
+  }
+
+  public static void _bb_ra(Plugin p, org.bukkit.boss.BossBar b) {
+    if (Bukkit.isPrimaryThread()) b.removeAll();
+    else Bukkit.getGlobalRegionScheduler().run(p, t -> b.removeAll());
+  }
+
     public static boolean safeUpdateBlockState(Plugin plugin, BlockState state) {
         return safeUpdateBlockState(plugin, state, false, true);
     }

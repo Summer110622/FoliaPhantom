@@ -12,6 +12,7 @@ package com.patch.foliaphantom.core;
 import com.patch.foliaphantom.core.progress.PatchProgressListener;
 import com.patch.foliaphantom.core.transformer.ClassTransformer;
 import com.patch.foliaphantom.core.transformer.ScanningClassVisitor;
+import com.patch.foliaphantom.core.transformer.impl.BossBarTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EntitySchedulerTransformer;
 import com.patch.foliaphantom.core.transformer.impl.EventFireAndForgetTransformer;
 import com.patch.foliaphantom.core.transformer.impl.SchedulerClassTransformer;
@@ -266,6 +267,7 @@ public class PluginPatcher {
             visitorTransformers.add(new InventoryTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new WorldGenClassTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EntitySchedulerTransformer(logger, relocatedPatcherPath));
+            visitorTransformers.add(new BossBarTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new ScoreboardTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new SchedulerClassTransformer(logger, relocatedPatcherPath));
             visitorTransformers.add(new EventCallTransformer(logger, relocatedPatcherPath));

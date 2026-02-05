@@ -167,6 +167,40 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testbossbar")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing BossBar transformations from an async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        org.bukkit.boss.BossBar bar = Bukkit.createBossBar("Test Bar", org.bukkit.boss.BarColor.BLUE, org.bukkit.boss.BarStyle.SOLID);
+                        // This should be transformed to _bb_ap
+                        bar.addPlayer(player);
+                        player.sendMessage("Added to BossBar");
+
+                        // Wait a bit
+                        try { Thread.sleep(1000); } catch (InterruptedException ignored) {}
+
+                        // This should be transformed to _bb_rp
+                        bar.removePlayer(player);
+                        player.sendMessage("Removed from BossBar");
+
+                        // Add again
+                        bar.addPlayer(player);
+
+                        // This should be transformed to _bb_ra
+                        bar.removeAll();
+                        player.sendMessage("Removed all players from BossBar");
+
+                        sender.sendMessage("BossBar transformations test successful!");
+                    } catch (Exception e) {
+                        getLogger().log(Level.SEVERE, "Error in testbossbar command", e);
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

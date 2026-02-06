@@ -43,6 +43,7 @@ public class ScanningClassVisitor extends ClassVisitor {
         "org/bukkit/entity/Entity",
         "org/bukkit/entity/LivingEntity",
         "org/bukkit/entity/Damageable",
+        "org/bukkit/attribute/Attributable",
         "org/bukkit/block/BlockState"
     );
 
@@ -122,9 +123,16 @@ public class ScanningClassVisitor extends ClassVisitor {
                             case "setAI":
                             case "setGameMode":
                             case "getHealth":
+                            case "addPotionEffect":
+                            case "removePotionEffect":
+                            case "hasPotionEffect":
+                            case "getPotionEffect":
                                 needsPatching = true;
                                 break;
                         }
+                        break;
+                    case "org/bukkit/attribute/Attributable":
+                        if ("getAttribute".equals(name)) needsPatching = true;
                         break;
                     case "org/bukkit/block/BlockState":
                         if ("update".equals(name)) needsPatching = true;

@@ -107,7 +107,7 @@ public class TeleportTransformer implements ClassTransformer {
 
                 // Stack: [plugin, player, location]
                 String newDesc = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;)Z";
-                super.visitMethodInsn(INVOKESTATIC, patcherOwner, "safeTeleport", newDesc, false);
+                super.visitMethodInsn(INVOKESTATIC, patcherOwner, "_tp", newDesc, false);
                 return;
             }
             super.visitMethodInsn(opcode, owner, name, desc, isInterface);

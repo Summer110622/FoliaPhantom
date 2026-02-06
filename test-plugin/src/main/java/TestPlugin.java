@@ -167,6 +167,42 @@ public class TestPlugin extends JavaPlugin implements Listener {
             return true;
         }
 
+        if (command.getName().equalsIgnoreCase("testentityapi")) {
+            if (sender instanceof Player) {
+                Player player = (Player) sender;
+                sender.sendMessage("Testing thread-safe Entity/LivingEntity APIs from async thread...");
+                Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
+                    try {
+                        // 1. Potion Effects
+                        org.bukkit.potion.PotionEffect effect = new org.bukkit.potion.PotionEffect(org.bukkit.potion.PotionEffectType.SPEED, 100, 1);
+                        player.addPotionEffect(effect);
+                        player.sendMessage("Added SPEED effect");
+                        player.removePotionEffect(org.bukkit.potion.PotionEffectType.SPEED);
+                        player.sendMessage("Removed SPEED effect");
+
+                        // 2. Scoreboard Tags
+                        player.addScoreboardTag("test_tag");
+                        player.sendMessage("Added tag: test_tag");
+                        player.removeScoreboardTag("test_tag");
+                        player.sendMessage("Removed tag: test_tag");
+
+                        // 3. Block manipulation (test refactored _st, _bd)
+                        org.bukkit.block.Block block = player.getLocation().getBlock().getRelative(org.bukkit.block.BlockFace.DOWN);
+                        org.bukkit.Material originalType = block.getType();
+                        block.setType(org.bukkit.Material.DIAMOND_BLOCK);
+                        player.sendMessage("Set block below you to DIAMOND_BLOCK");
+                        block.setType(originalType);
+                        player.sendMessage("Restored block below you");
+
+                        sender.sendMessage("Entity API tests successful!");
+                    } catch (Exception e) {
+                        getLogger().log(Level.SEVERE, "Error in testentityapi command", e);
+                    }
+                });
+            }
+            return true;
+        }
+
         return false;
     }
 }

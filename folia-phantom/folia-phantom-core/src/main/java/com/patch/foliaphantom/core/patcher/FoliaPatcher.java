@@ -15,6 +15,8 @@ import io.papermc.paper.threadedregions.scheduler.ScheduledTask;
 import org.bukkit.Bukkit;
 import org.bukkit.Effect;
 import org.bukkit.GameMode;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
 import org.bukkit.GameRule;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -202,12 +204,64 @@ public final class FoliaPatcher {
         return _b(p, () -> Bukkit.getOfflinePlayer(u));
     }
 
-    public static java.util.List<Player> _gp(Plugin p, World w) {
-        return safeGetPlayers(p, w);
+
+    public static <T> T _be(Plugin p, Entity e, java.util.concurrent.Callable<T> c) {
+        if (Bukkit.isPrimaryThread()) try { return c.call(); } catch (Exception ex) { throw new RuntimeException(ex); }
+        CompletableFuture<T> f = new CompletableFuture<>();
+        e.getScheduler().run(p, t -> {
+            try { f.complete(c.call()); } catch (Exception ex) { f.completeExceptionally(ex); }
+        }, null);
+        try { return f.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS); } catch (Exception ex) { return null; }
     }
 
-    public static void _bm(Plugin p, String m) {
-        safeBroadcastMessage(p, m);
+    public static boolean _ape(Plugin p, LivingEntity e, PotionEffect pe) {
+        Boolean r = _be(p, e, () -> e.addPotionEffect(pe));
+        return r != null && r;
+    }
+
+    public static void _rpe(Plugin p, LivingEntity e, PotionEffectType t) {
+        _e(p, e, () -> e.removePotionEffect(t));
+    }
+
+    public static boolean _ap(Plugin p, Entity v, Entity pa) {
+        Boolean r = _be(p, v, () -> v.addPassenger(pa));
+        return r != null && r;
+    }
+
+    public static boolean _rp(Plugin p, Entity v, Entity pa) {
+        Boolean r = _be(p, v, () -> v.removePassenger(pa));
+        return r != null && r;
+    }
+
+    public static boolean _ej(Plugin p, Entity v) {
+        Boolean r = _be(p, v, () -> v.eject());
+        return r != null && r;
+    }
+
+    public static void _st(Plugin p, Block b, org.bukkit.Material m) {
+        _r(p, b.getLocation(), () -> b.setType(m));
+    }
+
+    public static void _stwp(Plugin p, Block b, org.bukkit.Material m, boolean ap) {
+        _r(p, b.getLocation(), () -> b.setType(m, ap));
+    }
+
+    public static void _bd(Plugin p, Block b, org.bukkit.block.data.BlockData d) {
+        _r(p, b.getLocation(), () -> b.setBlockData(d));
+    }
+
+    public static void _bdwp(Plugin p, Block b, org.bukkit.block.data.BlockData d, boolean ap) {
+        _r(p, b.getLocation(), () -> b.setBlockData(d, ap));
+    }
+
+    public static boolean _at(Plugin p, Entity e, String t) {
+        Boolean r = _be(p, e, () -> e.addScoreboardTag(t));
+        return r != null && r;
+    }
+
+    public static boolean _rt(Plugin p, Entity e, String t) {
+        Boolean r = _be(p, e, () -> e.removeScoreboardTag(t));
+        return r != null && r;
     }
 
     /**
@@ -254,7 +308,7 @@ public final class FoliaPatcher {
     /**
      * Safely gets the highest block at a given location.
      */
-    public static Block safeGetHighestBlockAt(Plugin plugin, World world, int x, int z) {
+    public static Block _hb(Plugin plugin, World world, int x, int z) {
         if (Bukkit.isPrimaryThread()) {
             return world.getHighestBlockAt(x, z);
         } else {
@@ -272,13 +326,13 @@ public final class FoliaPatcher {
             try {
                 return future.get(API_TIMEOUT_MS, TimeUnit.MILLISECONDS);
             } catch (InterruptedException | ExecutionException e) {
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get highest block at " + x + ", " + z, e);
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Failed to get hb at " + x + ", " + z, e);
                 return null;
             } catch (TimeoutException e) {
                 if (FAIL_FAST) {
-                    throw new FoliaPatcherTimeoutException("Failed to get highest block at " + x + ", " + z, e);
+                    throw new FoliaPatcherTimeoutException("Failed to get hb at " + x + ", " + z, e);
                 }
-                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting highest block at " + x + ", " + z, e);
+                LOGGER.log(Level.WARNING, "[FoliaPhantom] Timed out while getting hb at " + x + ", " + z, e);
                 return null;
             }
         }
@@ -463,7 +517,7 @@ public final class FoliaPatcher {
     /**
      * Safely gets all players in a world.
      */
-    public static java.util.List<org.bukkit.entity.Player> safeGetPlayers(Plugin plugin, World world) {
+    public static java.util.List<org.bukkit.entity.Player> _gp(Plugin plugin, World world) {
         if (Bukkit.isPrimaryThread()) {
             return world.getPlayers();
         }
@@ -492,7 +546,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static int safeGetOnlinePlayersSize(final Plugin plugin) {
+    public static int _ops(final Plugin plugin) {
         if (!isFolia()) {
             return Bukkit.getOnlinePlayers().size();
         }
@@ -519,7 +573,7 @@ public final class FoliaPatcher {
      * Safely gets the online players from the server.
      * This is a global operation, so it uses the global region scheduler.
      */
-    public static java.util.Collection<? extends org.bukkit.entity.Player> safeGetOnlinePlayers(Plugin plugin) {
+    public static java.util.Collection<? extends org.bukkit.entity.Player> _o(Plugin plugin) {
         if (!isFolia()) {
             return Bukkit.getServer().getOnlinePlayers();
         }
@@ -546,7 +600,7 @@ public final class FoliaPatcher {
      * Safely gets the loaded worlds from the server.
      * This is a global operation, so it uses the global region scheduler.
      */
-    public static java.util.List<World> safeGetWorlds(Plugin plugin) {
+    public static java.util.List<World> _w(Plugin plugin) {
         if (Bukkit.isPrimaryThread()) {
             return Bukkit.getWorlds();
         }
@@ -573,7 +627,7 @@ public final class FoliaPatcher {
      * Safely broadcasts a message to the server.
      * This is a global operation, so it uses the global region scheduler.
      */
-    public static void safeBroadcastMessage(Plugin plugin, String message) {
+    public static void _bm(Plugin plugin, String message) {
         if (Bukkit.isPrimaryThread()) {
             Bukkit.getServer().broadcastMessage(message);
         } else {
@@ -698,7 +752,7 @@ public final class FoliaPatcher {
     /**
      * Safely gets all entities in a world.
      */
-    public static java.util.List<Entity> safeGetEntities(Plugin plugin, World world) {
+    public static java.util.List<Entity> _ge(Plugin plugin, World world) {
         if (Bukkit.isPrimaryThread()) {
             return world.getEntities();
         }
@@ -730,7 +784,7 @@ public final class FoliaPatcher {
     /**
      * Safely gets all living entities in a world.
      */
-    public static java.util.List<org.bukkit.entity.LivingEntity> safeGetLivingEntities(Plugin plugin, World world) {
+    public static java.util.List<org.bukkit.entity.LivingEntity> _gl(Plugin plugin, World world) {
         if (Bukkit.isPrimaryThread()) {
             return world.getLivingEntities();
         }
@@ -762,7 +816,7 @@ public final class FoliaPatcher {
     /**
      * Safely gets nearby entities to a location.
      */
-    public static java.util.Collection<Entity> safeGetNearbyEntities(Plugin plugin, World world, Location location, double x, double y, double z) {
+    public static java.util.Collection<Entity> _gne(Plugin plugin, World world, Location location, double x, double y, double z) {
         if (Bukkit.isPrimaryThread()) {
             return world.getNearbyEntities(location, x, y, z);
         }
@@ -791,38 +845,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetBlockType(Plugin plugin, Block block, org.bukkit.Material material) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material));
-        }
-    }
-
-    public static void safeSetBlockTypeWithPhysics(Plugin plugin, Block block, org.bukkit.Material material, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setType(material, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setType(material, applyPhysics));
-        }
-    }
-
-    /**
-     * Safely sets the block data for a block.
-     */
-    public static void safeSetBlockData(Plugin plugin, Block block, BlockData data) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setBlockData(data);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data));
-        }
-    }
-
-    /**
-     * Safely spawns an entity in the world at the given location.
-     * If not on the main thread, this will schedule the spawn and block until it completes.
-     */
-    public static <T extends Entity> T safeSpawnEntity(Plugin plugin, World world, Location location, Class<T> clazz) {
+    public static <T extends Entity> T _ss(Plugin plugin, World world, Location location, Class<T> clazz) {
         if (Bukkit.isPrimaryThread()) {
             return world.spawn(location, clazz);
         } else {
@@ -858,18 +881,7 @@ public final class FoliaPatcher {
     /**
      * Safely sets the block data for a block.
      */
-    public static void safeSetBlockDataWithPhysics(Plugin plugin, Block block, BlockData data, boolean applyPhysics) {
-        if (Bukkit.isPrimaryThread()) {
-            block.setBlockData(data, applyPhysics);
-        } else {
-            Bukkit.getRegionScheduler().run(plugin, block.getLocation(), task -> block.setBlockData(data, applyPhysics));
-        }
-    }
-
-    /**
-     * Safely loads a chunk, generating it if specified.
-     */
-    public static void safeLoadChunk(Plugin plugin, World world, int x, int z, boolean generate) {
+    public static void _cl(Plugin plugin, World world, int x, int z, boolean generate) {
         if (Bukkit.isPrimaryThread()) {
             world.loadChunk(x, z, generate);
         } else {
@@ -878,11 +890,7 @@ public final class FoliaPatcher {
         }
     }
 
-    /**
-     * Safely teleports a player to a new location.
-     * If not on the main thread, this will use async teleport and block for the result.
-     */
-    public static boolean safeTeleport(Plugin plugin, org.bukkit.entity.Player player, Location location) {
+    public static boolean _tp(Plugin plugin, org.bukkit.entity.Player player, Location location) {
         if (Bukkit.isPrimaryThread()) {
             return player.teleport(location);
         } else {
@@ -909,7 +917,7 @@ public final class FoliaPatcher {
     /**
      * Safely drops an item at the specified location.
      */
-    public static org.bukkit.entity.Item safeDropItem(Plugin plugin, World world, Location location, ItemStack item) {
+    public static org.bukkit.entity.Item _di(Plugin plugin, World world, Location location, ItemStack item) {
         if (Bukkit.isPrimaryThread()) {
             return world.dropItem(location, item);
         } else {
@@ -942,7 +950,7 @@ public final class FoliaPatcher {
     /**
      * Safely drops an item naturally at the specified location.
      */
-    public static org.bukkit.entity.Item safeDropItemNaturally(Plugin plugin, World world, Location location, ItemStack item) {
+    public static org.bukkit.entity.Item _dn(Plugin plugin, World world, Location location, ItemStack item) {
         if (Bukkit.isPrimaryThread()) {
             return world.dropItemNaturally(location, item);
         } else {
@@ -975,7 +983,7 @@ public final class FoliaPatcher {
     /**
      * Safely creates an explosion. Using the modern method signature.
      */
-    public static boolean safeCreateExplosion(Plugin plugin, World world, Location location, float power, boolean setFire, boolean breakBlocks) {
+    public static boolean _ex(Plugin plugin, World world, Location location, float power, boolean setFire, boolean breakBlocks) {
         if (Bukkit.isPrimaryThread()) {
             return world.createExplosion(location, power, setFire, breakBlocks);
         } else {
@@ -1003,7 +1011,7 @@ public final class FoliaPatcher {
     /**
      * Safely plays a particle effect.
      */
-    public static <T> void safePlayEffect(Plugin plugin, World world, Location location, Effect effect, T data) {
+    public static <T> void _pe(Plugin plugin, World world, Location location, Effect effect, T data) {
         if (Bukkit.isPrimaryThread()) {
             world.playEffect(location, effect, data);
         } else {
@@ -1014,7 +1022,7 @@ public final class FoliaPatcher {
     /**
      * Safely plays a sound.
      */
-    public static void safePlaySound(Plugin plugin, World world, Location location, Sound sound, float volume, float pitch) {
+    public static void _sd(Plugin plugin, World world, Location location, Sound sound, float volume, float pitch) {
         if (Bukkit.isPrimaryThread()) {
             world.playSound(location, sound, volume, pitch);
         } else {
@@ -1025,7 +1033,7 @@ public final class FoliaPatcher {
     /**
      * Safely strikes lightning.
      */
-    public static org.bukkit.entity.LightningStrike safeStrikeLightning(Plugin plugin, World world, Location location) {
+    public static org.bukkit.entity.LightningStrike _sl(Plugin plugin, World world, Location location) {
         if (Bukkit.isPrimaryThread()) {
             return world.strikeLightning(location);
         } else {
@@ -1058,7 +1066,7 @@ public final class FoliaPatcher {
     /**
      * Safely generates a tree.
      */
-    public static boolean safeGenerateTree(Plugin plugin, World world, Location location, TreeType type) {
+    public static boolean _gt(Plugin plugin, World world, Location location, TreeType type) {
         if (Bukkit.isPrimaryThread()) {
             return world.generateTree(location, type);
         } else {
@@ -1086,7 +1094,7 @@ public final class FoliaPatcher {
     /**
      * Safely sets a game rule. This is a global operation.
      */
-    public static <T> boolean safeSetGameRule(Plugin plugin, World world, GameRule<T> rule, T value) {
+    public static <T> boolean _sr(Plugin plugin, World world, GameRule<T> rule, T value) {
         if (Bukkit.isPrimaryThread()) {
             return world.setGameRule(rule, value);
         } else {
@@ -1579,7 +1587,7 @@ public final class FoliaPatcher {
      * Safely sets an item in an inventory slot.
      * Schedules the operation on the appropriate region scheduler if not on the main thread.
      */
-    public static void safeSetItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, int slot, org.bukkit.inventory.ItemStack item) {
+    public static void _si(Plugin plugin, org.bukkit.inventory.Inventory inventory, int slot, org.bukkit.inventory.ItemStack item) {
         if (Bukkit.isPrimaryThread()) {
             inventory.setItem(slot, item);
         } else {
@@ -1597,7 +1605,7 @@ public final class FoliaPatcher {
      * Safely adds items to an inventory.
      * Schedules the operation and blocks for the result if not on the main thread.
      */
-    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> safeAddItem(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
+    public static java.util.HashMap<Integer, org.bukkit.inventory.ItemStack> _ai(Plugin plugin, org.bukkit.inventory.Inventory inventory, org.bukkit.inventory.ItemStack... items) {
         if (Bukkit.isPrimaryThread()) {
             return inventory.addItem(items);
         } else {
@@ -1660,7 +1668,7 @@ public final class FoliaPatcher {
      * Safely clears an inventory.
      * Schedules the operation on the appropriate region scheduler if not on the main thread.
      */
-    public static void safeClear(Plugin plugin, org.bukkit.inventory.Inventory inventory) {
+    public static void _lc(Plugin plugin, org.bukkit.inventory.Inventory inventory) {
         if (Bukkit.isPrimaryThread()) {
             inventory.clear();
         } else {
@@ -1676,7 +1684,7 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe Player Operations ---
 
-    public static void safeSendMessage(Plugin plugin, org.bukkit.entity.Player player, String message) {
+    public static void _sm(Plugin plugin, org.bukkit.entity.Player player, String message) {
         if (Bukkit.isPrimaryThread()) {
             player.sendMessage(message);
         } else {
@@ -1684,7 +1692,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSendMessages(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
+    public static void _sm(Plugin plugin, org.bukkit.entity.Player player, String[] messages) {
         if (Bukkit.isPrimaryThread()) {
             player.sendMessage(messages);
         } else {
@@ -1692,7 +1700,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeKickPlayer(Plugin plugin, org.bukkit.entity.Player player, String message) {
+    public static void _kp(Plugin plugin, org.bukkit.entity.Player player, String message) {
         if (Bukkit.isPrimaryThread()) {
             player.kickPlayer(message);
         } else {
@@ -1700,7 +1708,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetHealth(Plugin plugin, org.bukkit.entity.Player player, double health) {
+    public static void _sh(Plugin plugin, org.bukkit.entity.Player player, double health) {
         if (Bukkit.isPrimaryThread()) {
             player.setHealth(health);
         } else {
@@ -1708,7 +1716,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetFoodLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+    public static void _sf(Plugin plugin, org.bukkit.entity.Player player, int level) {
         if (Bukkit.isPrimaryThread()) {
             player.setFoodLevel(level);
         } else {
@@ -1716,7 +1724,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeGiveExp(Plugin plugin, org.bukkit.entity.Player player, int amount) {
+    public static void _ge(Plugin plugin, org.bukkit.entity.Player player, int amount) {
         if (Bukkit.isPrimaryThread()) {
             player.giveExp(amount);
         } else {
@@ -1724,7 +1732,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetLevel(Plugin plugin, org.bukkit.entity.Player player, int level) {
+    public static void _sl(Plugin plugin, org.bukkit.entity.Player player, int level) {
         if (Bukkit.isPrimaryThread()) {
             player.setLevel(level);
         } else {
@@ -1732,7 +1740,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safePlaySound(Plugin plugin, org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
+    public static void _sd(Plugin plugin, org.bukkit.entity.Player player, Location location, Sound sound, float volume, float pitch) {
         if (Bukkit.isPrimaryThread()) {
             player.playSound(location, sound, volume, pitch);
         } else {
@@ -1740,7 +1748,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSendTitle(Plugin plugin, org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
+    public static void _stt(Plugin plugin, org.bukkit.entity.Player player, String title, String subtitle, int fadeIn, int stay, int fadeOut) {
         if (Bukkit.isPrimaryThread()) {
             player.sendTitle(title, subtitle, fadeIn, stay, fadeOut);
         } else {
@@ -1748,7 +1756,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static org.bukkit.inventory.InventoryView safeOpenInventory(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
+    public static org.bukkit.inventory.InventoryView _oi(Plugin plugin, org.bukkit.entity.Player player, org.bukkit.inventory.Inventory inventory) {
         if (Bukkit.isPrimaryThread()) {
             return player.openInventory(inventory);
         } else {
@@ -1779,7 +1787,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeCloseInventory(Plugin plugin, org.bukkit.entity.Player player) {
+    public static void _ci(Plugin plugin, org.bukkit.entity.Player player) {
         if (Bukkit.isPrimaryThread()) {
             player.closeInventory();
         } else {
@@ -1795,7 +1803,7 @@ public final class FoliaPatcher {
      * @param player The player whose health to get.
      * @return The player's health, or 0.0 if the operation times out or fails.
      */
-    public static double safeGetHealth(Plugin plugin, org.bukkit.entity.Player player) {
+    public static double _gh(Plugin plugin, org.bukkit.entity.Player player) {
         if (Bukkit.isPrimaryThread()) {
             return player.getHealth();
         } else {
@@ -1827,7 +1835,7 @@ public final class FoliaPatcher {
 
     // --- Thread-Safe Entity Operations ---
 
-    public static void safeRemove(Plugin plugin, Entity entity) {
+    public static void _rem(Plugin plugin, Entity entity) {
         if (Bukkit.isPrimaryThread()) {
             entity.remove();
         } else {
@@ -1835,7 +1843,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetVelocity(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
+    public static void _sv(Plugin plugin, Entity entity, org.bukkit.util.Vector velocity) {
         if (Bukkit.isPrimaryThread()) {
             entity.setVelocity(velocity);
         } else {
@@ -1843,7 +1851,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static boolean safeTeleportEntity(Plugin plugin, Entity entity, Location location) {
+    public static boolean _te(Plugin plugin, Entity entity, Location location) {
         if (Bukkit.isPrimaryThread()) {
             return entity.teleport(location);
         } else {
@@ -1874,7 +1882,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetFireTicks(Plugin plugin, Entity entity, int ticks) {
+    public static void _sft(Plugin plugin, Entity entity, int ticks) {
         if (Bukkit.isPrimaryThread()) {
             entity.setFireTicks(ticks);
         } else {
@@ -1882,7 +1890,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetCustomName(Plugin plugin, Entity entity, String name) {
+    public static void _scn(Plugin plugin, Entity entity, String name) {
         if (Bukkit.isPrimaryThread()) {
             entity.setCustomName(name);
         } else {
@@ -1890,7 +1898,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetGravity(Plugin plugin, Entity entity, boolean gravity) {
+    public static void _sg(Plugin plugin, Entity entity, boolean gravity) {
         if (Bukkit.isPrimaryThread()) {
             entity.setGravity(gravity);
         } else {
@@ -1898,7 +1906,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeDamage(Plugin plugin, Damageable entity, double amount) {
+    public static void _dmg(Plugin plugin, Damageable entity, double amount) {
         if (Bukkit.isPrimaryThread()) {
             entity.damage(amount);
         } else {
@@ -1906,7 +1914,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeDamage(Plugin plugin, Damageable entity, double amount, Entity source) {
+    public static void _dmg(Plugin plugin, Damageable entity, double amount, Entity source) {
         if (Bukkit.isPrimaryThread()) {
             entity.damage(amount, source);
         } else {
@@ -1914,7 +1922,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetAI(Plugin plugin, LivingEntity entity, boolean ai) {
+    public static void _sai(Plugin plugin, LivingEntity entity, boolean ai) {
         if (Bukkit.isPrimaryThread()) {
             entity.setAI(ai);
         } else {
@@ -1922,7 +1930,7 @@ public final class FoliaPatcher {
         }
     }
 
-    public static void safeSetGameMode(Plugin plugin, Player player, GameMode gameMode) {
+    public static void _sgm(Plugin plugin, Player player, GameMode gameMode) {
         if (Bukkit.isPrimaryThread()) {
             player.setGameMode(gameMode);
         } else {
@@ -1930,15 +1938,15 @@ public final class FoliaPatcher {
         }
     }
 
-    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state) {
-        return safeUpdateBlockState(plugin, state, false, true);
+    public static boolean _up(Plugin plugin, BlockState state) {
+        return _up(plugin, state, false, true);
     }
 
-    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state, boolean force) {
-        return safeUpdateBlockState(plugin, state, force, true);
+    public static boolean _up(Plugin plugin, BlockState state, boolean force) {
+        return _up(plugin, state, force, true);
     }
 
-    public static boolean safeUpdateBlockState(Plugin plugin, BlockState state, boolean force, boolean applyPhysics) {
+    public static boolean _up(Plugin plugin, BlockState state, boolean force, boolean applyPhysics) {
         if (Bukkit.isPrimaryThread()) {
             return state.update(force, applyPhysics);
         } else {

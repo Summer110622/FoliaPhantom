@@ -27,17 +27,17 @@ public class PlayerTransformer implements ClassTransformer {
 
     static {
         // Player methods
-        addMapping("sendMessage", "(Ljava/lang/String;)V", "safeSendMessage", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
-        addMapping("sendMessage", "([Ljava/lang/String;)V", "safeSendMessages", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;[Ljava/lang/String;)V");
+        addMapping("sendMessage", "(Ljava/lang/String;)V", "_sm", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
+        addMapping("sendMessage", "([Ljava/lang/String;)V", "_sms", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;[Ljava/lang/String;)V");
         addMapping("kickPlayer", "(Ljava/lang/String;)V", "safeKickPlayer", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;)V");
         addMapping("setHealth", "(D)V", "safeSetHealth", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;D)V");
         addMapping("setFoodLevel", "(I)V", "safeSetFoodLevel", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
         addMapping("giveExp", "(I)V", "safeGiveExp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
         addMapping("setLevel", "(I)V", "safeSetLevel", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;I)V");
-        addMapping("playSound", "(Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V", "safePlaySound", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V");
-        addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "safeSendTitle", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
-        addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "safeOpenInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
-        addMapping("closeInventory", "()V", "safeCloseInventory", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)V");
+        addMapping("playSound", "(Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V", "_sd", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/Location;Lorg/bukkit/Sound;FF)V");
+        addMapping("sendTitle", "(Ljava/lang/String;Ljava/lang/String;III)V", "_stt", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Ljava/lang/String;Ljava/lang/String;III)V");
+        addMapping("openInventory", "(Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;", "_oi", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;Lorg/bukkit/inventory/Inventory;)Lorg/bukkit/inventory/InventoryView;");
+        addMapping("closeInventory", "()V", "_ci", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/entity/Player;)V");
     }
 
     public PlayerTransformer(Logger logger, String relocatedPatcherPath) {

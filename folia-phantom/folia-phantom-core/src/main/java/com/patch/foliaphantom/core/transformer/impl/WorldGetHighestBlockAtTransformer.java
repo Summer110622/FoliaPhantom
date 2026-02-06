@@ -111,7 +111,7 @@ public class WorldGetHighestBlockAtTransformer implements ClassTransformer {
 
                     String patcherOwner = relocatedPatcherPath + "/FoliaPatcher";
                     String patcherDescriptor = "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/World;II)Lorg/bukkit/block/Block;";
-                    mv.visitMethodInsn(INVOKESTATIC, patcherOwner, "safeGetHighestBlockAt", patcherDescriptor, false);
+                    mv.visitMethodInsn(INVOKESTATIC, patcherOwner, "_hb", patcherDescriptor, false);
                     transformed = true;
                     logger.info("[FoliaPhantom] Transformed World.getHighestBlockAt call in " + className);
                 } else {

@@ -84,7 +84,7 @@ public class WorldGetPlayersTransformer implements ClassTransformer {
                     logger.fine("[WorldGetPlayersTransformer] Transforming " + owner + "#" + name + " in " + className);
 
                     // The original call leaves a World instance on the stack.
-                    // The safeGetPlayers method needs this, but it also needs a plugin instance.
+                    // The _gp method needs this, but it also needs a plugin instance.
                     // Stack before: [..., world]
                     // We need to transform it to: [..., plugin, world]
 

@@ -38,7 +38,7 @@ public class ScoreboardTransformer implements ClassTransformer {
         scoreboardMap.put("registerNewObjective(Ljava/lang/String;Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;", new MethodMapping("safeRegisterNewObjective", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;"));
         scoreboardMap.put("registerNewTeam(Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;", new MethodMapping("safeRegisterNewTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Lorg/bukkit/scoreboard/Team;"));
         scoreboardMap.put("resetScores(Ljava/lang/String;)V", new MethodMapping("safeResetScores", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)V"));
-        scoreboardMap.put("clearSlot(Lorg/bukkit/scoreboard/DisplaySlot;)V", new MethodMapping("safeClearSlot", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Lorg/bukkit/scoreboard/DisplaySlot;)V"));
+        scoreboardMap.put("clearSlot(Lorg/bukkit/scoreboard/DisplaySlot;)V", new MethodMapping("_lcSlot", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Lorg/bukkit/scoreboard/DisplaySlot;)V"));
         scoreboardMap.put("getObjective(Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;", new MethodMapping("safeGetObjective", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Lorg/bukkit/scoreboard/Objective;"));
         scoreboardMap.put("getObjectivesByCriteria(Ljava/lang/String;)Ljava/util/Set;", new MethodMapping("safeGetObjectivesByCriteria", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;Ljava/lang/String;)Ljava/util/Set;"));
         scoreboardMap.put("getObjectives()Ljava/util/Set;", new MethodMapping("safeGetObjectives", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Scoreboard;)Ljava/util/Set;"));
@@ -50,12 +50,12 @@ public class ScoreboardTransformer implements ClassTransformer {
         // Team Mappings
         Map<String, MethodMapping> teamMap = new HashMap<>();
         teamMap.put("addEntry(Ljava/lang/String;)V", new MethodMapping("safeAddEntry", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
-        teamMap.put("removeEntry(Ljava/lang/String;)Z", new MethodMapping("safeRemoveEntry", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)Z"));
+        teamMap.put("removeEntry(Ljava/lang/String;)Z", new MethodMapping("_remEntry", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)Z"));
         teamMap.put("setPrefix(Ljava/lang/String;)V", new MethodMapping("safeSetPrefix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("setSuffix(Ljava/lang/String;)V", new MethodMapping("safeSetSuffix", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;Ljava/lang/String;)V"));
         teamMap.put("unregister()V", new MethodMapping("safeUnregisterTeam", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)V"));
         teamMap.put("getEntries()Ljava/util/Set;", new MethodMapping("safeGetTeamEntries", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
-        teamMap.put("getPlayers()Ljava/util/Set;", new MethodMapping("safeGetPlayers", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
+        teamMap.put("getPlayers()Ljava/util/Set;", new MethodMapping("_gp", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)Ljava/util/Set;"));
         teamMap.put("getSize()I", new MethodMapping("safeGetSize", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/scoreboard/Team;)I"));
         methodMappings.put(TEAM_OWNER, teamMap);
 

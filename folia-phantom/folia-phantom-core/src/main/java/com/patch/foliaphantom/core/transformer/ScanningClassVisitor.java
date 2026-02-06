@@ -112,6 +112,13 @@ public class ScanningClassVisitor extends ClassVisitor {
                     case "org/bukkit/entity/Damageable":
                     case "org/bukkit/entity/Player":
                          switch (name) {
+                            case "addPotionEffect":
+                            case "removePotionEffect":
+                            case "addPassenger":
+                            case "removePassenger":
+                            case "eject":
+                            case "addScoreboardTag":
+                            case "removeScoreboardTag":
                             case "remove":
                             case "setVelocity":
                             case "teleport":

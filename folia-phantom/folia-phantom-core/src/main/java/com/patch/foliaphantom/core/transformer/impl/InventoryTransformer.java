@@ -103,17 +103,17 @@ public class InventoryTransformer implements ClassTransformer {
             switch (name) {
                 case "setItem":
                     if ("(ILorg/bukkit/inventory/ItemStack;)V".equals(desc)) {
-                        return transform(2, "safeSetItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;ILorg/bukkit/inventory/ItemStack;)V");
+                        return transform(2, "_si", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;ILorg/bukkit/inventory/ItemStack;)V");
                     }
                     break;
                 case "addItem":
                     if ("([Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;".equals(desc)) {
-                        return transform(1, "safeAddItem", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;[Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;");
+                        return transform(1, "_ai", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;[Lorg/bukkit/inventory/ItemStack;)Ljava/util/HashMap;");
                     }
                     break;
                 case "clear":
                     if ("()V".equals(desc)) {
-                        return transform(0, "safeClear", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;)V");
+                        return transform(0, "_lc", "(Lorg/bukkit/plugin/Plugin;Lorg/bukkit/inventory/Inventory;)V");
                     }
                     break;
             }

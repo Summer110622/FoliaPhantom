@@ -1,30 +1,25 @@
 /*
- * Folia Phantom - Scanning Class Visitor
+ * Folia Phantom - Audit Class Visitor
  *
  * Copyright (c) 2025 Marv
  * Licensed under MARV License
  */
 package com.patch.foliaphantom.core.transformer;
 
+import com.patch.foliaphantom.core.audit.AuditResult;
 import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
 import java.util.Set;
 
 /**
- * A lightweight ClassVisitor that performs a fast scan of method calls.
- *
- * <p>Its purpose is to determine if a class needs patching without performing
- * full bytecode transformation. This significantly improves performance for
- * plugins with many classes that don't use Bukkit scheduler or threading APIs.
- * </p>
+ * A ClassVisitor that scans for all thread-unsafe Bukkit API calls.
  */
-public class ScanningClassVisitor extends ClassVisitor {
-  private boolean needsPatching = false;
+public class AuditClassVisitor extends ClassVisitor {
+  private final AuditResult auditResult;
+  private String className;
 
-  // Use a Set for O(1) lookups, which is faster than long boolean chains.
   private static final Set<String> INTERESTING_OWNERS = Set.of(
-    "com/patch/foliaphantom/core/patcher/FoliaPatcher",
     "org/bukkit/scheduler/BukkitScheduler",
     "org/bukkit/scheduler/BukkitRunnable",
     "org/bukkit/WorldCreator",
@@ -51,69 +46,70 @@ public class ScanningClassVisitor extends ClassVisitor {
     "org/bukkit/boss/KeyedBossBar"
   );
 
-  public ScanningClassVisitor(String relocatedPatcherPath) {
-    // relocatedPatcherPath is not used here but kept for constructor consistency.
+  public AuditClassVisitor(AuditResult auditResult) {
     super(Opcodes.ASM9);
+    this.auditResult = auditResult;
   }
 
-  /**
-   * @return true if the class contains calls that require transformation
-   */
-  public boolean needsPatching() {
-    return needsPatching;
+  @Override
+  public void visit(int version, int access, String name, String signature, String superName, String[] interfaces) {
+    this.className = name.replace('/', '.');
+    super.visit(version, access, name, signature, superName, interfaces);
   }
 
   @Override
   public MethodVisitor visitMethod(int access, String name, String desc, String signature, String[] exceptions) {
-    if (needsPatching) {
-      return null; // Stop scanning if already found.
-    }
-    return new ScanningMethodVisitor();
+    return new AuditMethodVisitor(name);
   }
 
-  private class ScanningMethodVisitor extends MethodVisitor {
-    public ScanningMethodVisitor() {
+  private class AuditMethodVisitor extends MethodVisitor {
+    private final String currentMethodName;
+
+    public AuditMethodVisitor(String methodName) {
       super(Opcodes.ASM9);
+      this.currentMethodName = methodName;
     }
 
     @Override
     public void visitMethodInsn(int opcode, String owner, String name, String desc, boolean isInterface) {
-      if (needsPatching) {
-        return;
-      }
-
-      // Fast path: check owner first.
       if (INTERESTING_OWNERS.contains(owner)) {
-        // At this point, the owner is interesting. Check the method name for specifics.
+        String reason = null;
         switch (owner) {
           case "org/bukkit/plugin/PluginManager":
-            if ("callEvent".equals(name)) needsPatching = true;
+            if ("callEvent".equals(name)) reason = "Async event calling";
             break;
           case "org/bukkit/block/Block":
-            if ("setType".equals(name) || "setBlockData".equals(name)) needsPatching = true;
+            if ("setType".equals(name) || "setBlockData".equals(name)) reason = "Thread-unsafe block modification";
             break;
           case "org/bukkit/World":
             switch (name) {
-              case "spawn":
-              case "loadChunk":
+              case "spawn": reason = "Thread-unsafe entity spawn"; break;
+              case "loadChunk": reason = "Thread-unsafe chunk loading"; break;
               case "getEntities":
               case "getLivingEntities":
               case "getPlayers":
               case "getNearbyEntities":
+                reason = "Thread-unsafe world entity access"; break;
               case "getHighestBlockAt":
+                reason = "Thread-unsafe world block access"; break;
               case "rayTraceBlocks":
               case "rayTraceEntities":
+                reason = "Thread-unsafe raytracing"; break;
               case "spawnParticle":
-                needsPatching = true;
-                break;
+                reason = "Thread-unsafe particle spawning"; break;
             }
             break;
           case "org/bukkit/Bukkit":
           case "org/bukkit/Server":
-            if ("getOnlinePlayers".equals(name) || "getWorlds".equals(name) || "getPlayer".equals(name) || "getWorld".equals(name) || "createWorld".equals(name) || "dispatchCommand".equals(name) || "getOfflinePlayer".equals(name)) needsPatching = true;
+            if ("getOnlinePlayers".equals(name) || "getWorlds".equals(name) || "getPlayer".equals(name) || "getWorld".equals(name))
+                reason = "Thread-unsafe global mirroring";
+            else if ("createWorld".equals(name)) reason = "Thread-unsafe world creation";
+            else if ("dispatchCommand".equals(name)) reason = "Thread-unsafe command dispatch";
+            else if ("getOfflinePlayer".equals(name)) reason = "Blocking offline player access";
             break;
-          case "org/bukkit/plugin/Plugin":
-            if ("getDefaultWorldGenerator".equals(name)) needsPatching = true;
+          case "org/bukkit/scheduler/BukkitScheduler":
+          case "org/bukkit/scheduler/BukkitRunnable":
+            reason = "Legacy Bukkit scheduler usage";
             break;
           case "org/bukkit/entity/Entity":
           case "org/bukkit/entity/LivingEntity":
@@ -129,49 +125,59 @@ public class ScanningClassVisitor extends ClassVisitor {
               case "damage":
               case "setAI":
               case "setGameMode":
+                reason = "Thread-unsafe entity modification"; break;
               case "getHealth":
+                reason = "Thread-unsafe entity state access"; break;
               case "addPotionEffect":
               case "removePotionEffect":
               case "hasPotionEffect":
               case "getPotionEffect":
+                reason = "Thread-unsafe potion effect modification"; break;
               case "addPassenger":
               case "removePassenger":
               case "eject":
+                reason = "Thread-unsafe passenger modification"; break;
               case "getNearbyEntities":
+                reason = "Thread-unsafe nearby entity access"; break;
               case "addScoreboardTag":
               case "removeScoreboardTag":
-                needsPatching = true;
-                break;
+                reason = "Thread-unsafe scoreboard tag modification"; break;
             }
             break;
           case "org/bukkit/block/BlockState":
-            if ("update".equals(name)) needsPatching = true;
+            if ("update".equals(name)) reason = "Thread-unsafe block state update";
             break;
           case "org/bukkit/inventory/Inventory":
-            if ("setItem".equals(name) || "addItem".equals(name) || "clear".equals(name)) needsPatching = true;
+            if ("setItem".equals(name) || "addItem".equals(name) || "clear".equals(name))
+                reason = "Thread-unsafe inventory modification";
             break;
           case "org/bukkit/Chunk":
-            if ("getEntities".equals(name) || "load".equals(name) || "unload".equals(name)) needsPatching = true;
+            if ("getEntities".equals(name)) reason = "Thread-unsafe chunk entity access";
+            else if ("load".equals(name) || "unload".equals(name)) reason = "Thread-unsafe chunk state change";
             break;
           case "org/bukkit/attribute/Attributable":
-            if ("getAttribute".equals(name)) needsPatching = true;
+            if ("getAttribute".equals(name)) reason = "Thread-unsafe attribute access";
             break;
           case "org/bukkit/boss/BossBar":
           case "org/bukkit/boss/KeyedBossBar":
-            if ("addPlayer".equals(name) || "removePlayer".equals(name) || "removeAll".equals(name)) needsPatching = true;
+            if ("addPlayer".equals(name) || "removePlayer".equals(name) || "removeAll".equals(name))
+                reason = "Thread-unsafe bossbar modification";
             break;
-          // For other owners in the set, their presence alone is enough.
-          default:
-            needsPatching = true;
+          case "org/bukkit/scoreboard/Scoreboard":
+          case "org/bukkit/scoreboard/Team":
+          case "org/bukkit/scoreboard/Objective":
+          case "org/bukkit/scoreboard/Score":
+            reason = "Thread-unsafe scoreboard interaction";
             break;
+        }
+
+        if (reason != null) {
+          auditResult.addFinding(className, currentMethodName, reason + " (" + owner.replace('/', '.') + "#" + name + ")");
         }
       }
 
-      if (needsPatching) return;
-
-      // Secondary check for BukkitRunnable subclasses, which have a variable owner.
       if (opcode == Opcodes.INVOKEVIRTUAL && isBukkitRunnableInstanceMethod(name, desc)) {
-        needsPatching = true;
+        auditResult.addFinding(className, currentMethodName, "Legacy BukkitRunnable task scheduling");
       }
     }
 
